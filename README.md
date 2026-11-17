@@ -38,6 +38,19 @@ La ruta devuelve HTTP 200 y `{"status":"ok","database":"connected"}` cuando la c
 
 Para detener el entorno, presiona `Ctrl+C` en la terminal de la API y ejecuta `docker compose down` desde la raíz del repositorio. El volumen conserva los datos entre arranques. PostgreSQL usa las credenciales y el nombre de la base de `.env` al inicializar el volumen por primera vez.
 
+## Estructura del backend
+
+```text
+src/
+├── app.js              # Configuración de Express y montaje de rutas
+├── server.js           # Verificación de la conexión y arranque de la API
+├── routes/             # Rutas de Express y respuestas HTTP
+├── services/           # Operaciones que ejecutan las rutas
+└── db/                 # Conexión a PostgreSQL con Sequelize
+```
+
+El proyecto usa módulos ECMAScript (ESM) con `"type": "module"` en `package.json`. Usa `import` y `export` en los archivos `.js` e incluye la extensión en los imports relativos. La conexión y los futuros modelos de Sequelize pueden usar ESM. Si se incorpora una herramienta que exige CommonJS para su configuración, se puede usar `.cjs` para ese archivo específico.
+
 ## Integración con el frontend
 
 El frontend usa React y Vite. Los repositorios de `src/core/utils/repositories.js` exponen `get()`, `save()` y `remove()` asíncronos. Esos repositorios son el punto de integración para adoptar las rutas de la API a medida que se implementan. En esta etapa la API ofrece la ruta de diagnóstico y los datos del congreso siguen en el almacenamiento del navegador.

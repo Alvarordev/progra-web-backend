@@ -1,18 +1,8 @@
-import express from 'express'
-import { sequelize } from './database.js'
+import { app } from './app.js'
+import { sequelize } from './db/sequelize.js'
 
-const app = express()
 const host = '127.0.0.1'
 const port = Number(process.env.PORT ?? 3000)
-
-app.get('/api/health', async (_request, response) => {
-  try {
-    await sequelize.authenticate()
-    response.json({ status: 'ok', database: 'connected' })
-  } catch {
-    response.status(503).json({ status: 'unavailable', database: 'disconnected' })
-  }
-})
 
 try {
   await sequelize.authenticate()
