@@ -9,14 +9,17 @@ module.exports = {
         primaryKey: true,
         type: Sequelize.INTEGER
       },
-      puntaje: {
-        type: Sequelize.INTEGER
-      },
       recomendacion: {
         type: Sequelize.STRING
       },
-      comentario: {
-        type: Sequelize.STRING
+      comentarioAutor: {
+        type: Sequelize.TEXT
+      },
+      comentarioComite: {
+        type: Sequelize.TEXT
+      },
+      fechaLimite: {
+        type: Sequelize.DATEONLY
       },
       estado: {
         type: Sequelize.STRING

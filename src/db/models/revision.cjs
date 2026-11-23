@@ -13,12 +13,14 @@ module.exports = (sequelize, DataTypes) => {
       // define association here
       this.belongsTo(models.trabajo, { as: 'trabajo', foreignKey: 'trabajoId' });
       this.belongsTo(models.usuario, { as: 'revisor', foreignKey: 'revisorId' });
+      this.hasMany(models.revisionCriterio, { as: 'criterios', foreignKey: 'revisionId' });
     }
   }
   revision.init({
-    puntaje: DataTypes.INTEGER,
     recomendacion: DataTypes.STRING,
-    comentario: DataTypes.STRING,
+    comentarioAutor: DataTypes.TEXT,
+    comentarioComite: DataTypes.TEXT,
+    fechaLimite: DataTypes.DATEONLY,
     estado: DataTypes.STRING
   }, {
     sequelize,

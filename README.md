@@ -66,11 +66,22 @@ npx sequelize-cli db:seed:all --options-path .sequelizerc.cjs
 
 Para volver a empezar: `db:seed:undo:all` y `db:migrate:undo:all` con la misma opción `--options-path`.
 
-| Tabla       | Relación                                                    |
-| ----------- | ----------------------------------------------------------- |
-| `usuarios`  | Un usuario (autor) tiene muchos trabajos y (revisor) muchas revisiones |
-| `trabajos`  | Pertenece a un autor; tiene una o varias revisiones y una decisión |
-| `revisions` | Pertenece a un trabajo y a un revisor                       |
-| `decisions` | Pertenece a un trabajo (dictamen final del comité)          |
+| Tabla               | Relación                                                                  |
+| ------------------- | ------------------------------------------------------------------------- |
+| `usuarios`          | Un usuario (autor) tiene muchos trabajos y (revisor) muchas revisiones    |
+| `trabajos`          | Pertenece a un autor; tiene una o varias revisiones y una decisión        |
+| `revisions`         | Pertenece a un trabajo y a un revisor; tiene una nota por cada criterio   |
+| `criterios`         | Criterios de evaluación con su peso (suman 100)                           |
+| `revisionCriterios` | Nota (0 a 20) y comentario de una revisión en un criterio                 |
+| `decisions`         | Pertenece a un trabajo (dictamen final del comité)                        |
 
-Rutas de la HU5: `GET /api/hu5/revisiones`, `GET /api/hu5/trabajos-revisiones` y `GET /api/hu5/decisiones`.
+Rutas de la HU5 (prefijo `/api/hu5`):
+
+| Método | Ruta                          | Uso                                                     |
+| ------ | ----------------------------- | ------------------------------------------------------- |
+| GET    | `/revisiones`                 | Revisiones con trabajo, revisor y notas por criterio    |
+| GET    | `/trabajos-revisiones`        | Trabajos con autor, revisiones y decisión               |
+| GET    | `/decisiones`                 | Decisiones del comité con su trabajo                    |
+| GET    | `/consolidado/:trabajoId`     | Notas ponderadas y promedio de las revisiones enviadas  |
+| PUT    | `/revisiones/:id`             | Guarda borrador o envía la evaluación con sus notas     |
+| PUT    | `/decisiones/:trabajoId`      | Guarda o publica la decisión final                      |
