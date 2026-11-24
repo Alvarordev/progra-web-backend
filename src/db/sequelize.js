@@ -7,4 +7,5 @@ export const sequelize = new Sequelize(POSTGRES_DB, POSTGRES_USER, POSTGRES_PASS
   host: DB_HOST,
   port: Number(DB_PORT),
   logging: false,
+  define: { underscored: true },
 })
