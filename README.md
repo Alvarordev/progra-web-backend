@@ -68,19 +68,19 @@ Para probar la HU5 con el conjunto de ejemplo del PR, configura `HU5_DEMO_PASSWO
 
 ## API de revisión y dictamen
 
-La HU5 usa autenticación HTTP Basic con el correo y la contraseña de la cuenta. La API escucha en `127.0.0.1` en desarrollo. El prefijo de las rutas es `/api/hu5`.
+Las rutas de revisión y dictamen usan autenticación HTTP Basic con el correo y la contraseña de la cuenta. La API escucha en `127.0.0.1` en desarrollo. El prefijo de las rutas es `/api`.
 
 | Método | Ruta | Acceso y operación |
 | --- | --- | --- |
 | GET | `/revisiones` | El revisor consulta sus evaluaciones y el comité consulta todas. |
-| GET | `/trabajos-revisiones` | El comité consulta trabajos, revisiones y dictámenes. |
+| GET | `/trabajos` | El comité consulta trabajos, revisiones y dictámenes. |
 | GET | `/decisiones` | El comité consulta todos los dictámenes. El autor consulta los publicados de sus trabajos. |
-| GET | `/consolidado/:trabajoId` | El comité consulta las notas ponderadas de las evaluaciones enviadas. |
+| GET | `/trabajos/:trabajoId/revisiones` | El comité consulta las notas ponderadas de las evaluaciones enviadas. |
 | PUT | `/revisiones/:id` | El revisor asignado guarda el borrador o envía su evaluación. |
 | PUT | `/decisiones/:trabajoId` | El comité guarda o publica el dictamen y fija el estado final del trabajo. |
 
 ```bash
-curl --user luis.ramirez@ulima.edu.pe http://127.0.0.1:3000/api/hu5/revisiones
+curl --user luis.ramirez@ulima.edu.pe http://127.0.0.1:3000/api/revisiones
 ```
 
 ## Integración con el frontend

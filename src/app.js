@@ -1,6 +1,6 @@
 import express from 'express'
 import { healthRouter } from './routes/health.js'
-import revisionBDRouter from './routes/revisionBD.js'
+import revisionesRouter from './routes/revisiones.js'
 
 export const app = express()
 
@@ -8,5 +8,4 @@ export const app = express()
 app.use(express.json())
 
 app.use('/api/health', healthRouter)
-// HU5: revisión de trabajos y dictamen del comité
-app.use('/api/hu5', revisionBDRouter)
+app.use('/api', revisionesRouter)

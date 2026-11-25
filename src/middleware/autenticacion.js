@@ -22,7 +22,7 @@ export async function autenticar(req, res, next) {
     }
   }
 
-  res.set('WWW-Authenticate', 'Basic realm="HU5", charset="UTF-8"')
+  res.set('WWW-Authenticate', 'Basic realm="Congreso", charset="UTF-8"')
   return res.status(401).json({ status: 'error', mensaje: 'Se requiere una cuenta válida.' })
 }
 
