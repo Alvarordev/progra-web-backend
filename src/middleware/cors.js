@@ -8,7 +8,10 @@ const origenes = new Set(
 export function cors(req, res, next) {
   res.vary('Origin')
   const origen = req.get('Origin')
-  if (!origen || !origenes.has(origen)) return next()
+  if (!origen) return next()
+  if (!origenes.has(origen)) {
+    return res.status(403).json({ status: 'error', mensaje: 'Origen no permitido.' })
+  }
 
   res.set('Access-Control-Allow-Origin', origen)
   res.set('Access-Control-Allow-Credentials', 'true')
