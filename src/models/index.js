@@ -15,8 +15,12 @@ import { Usuario } from './Usuario.js'
 import { Trabajo } from './Trabajo.js'
 import { AutorTrabajo } from './AutorTrabajo.js'
 import { TipoTrabajo } from './TipoTrabajo.js'
+import { RecuperacionContrasena } from './RecuperacionContrasena.js'
 
 const required = name => ({ foreignKey: { name, allowNull: false } })
+
+Usuario.hasMany(RecuperacionContrasena, { foreignKey: 'usuarioId', onDelete: 'CASCADE' })
+RecuperacionContrasena.belongsTo(Usuario, { foreignKey: 'usuarioId' })
 
 // Configuración de cada edición
 for (const model of [EjeTematico, TipoTrabajo, Criterio, Trabajo, SesionPrograma]) {
@@ -134,4 +138,5 @@ export {
   Trabajo,
   AutorTrabajo,
   TipoTrabajo,
+  RecuperacionContrasena,
 }

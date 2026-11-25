@@ -18,6 +18,14 @@ npm run dev
 
 Edita `.env` antes de levantar los servicios si necesitas cambiar los valores de ejemplo. Git ignora este archivo.
 
+Configura `SESSION_SECRET` con una clave propia y conserva el mismo valor entre reinicios:
+
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+```
+
+El servicio `correo` de Compose ejecuta Mailpit: captura los correos SMTP en desarrollo. Su bandeja está en `http://127.0.0.1:8025` y SMTP escucha en `127.0.0.1:1025`.
+
 | Variable | Uso |
 | --- | --- |
 | `PORT` | Puerto local de la API. Por defecto, `3000`. |
@@ -25,6 +33,11 @@ Edita `.env` antes de levantar los servicios si necesitas cambiar los valores de
 | `DB_HOST` | Host que usa la API para conectarse a PostgreSQL. Usa `127.0.0.1` con el Compose incluido. |
 | `DB_PORT` | Puerto local publicado por Compose. Por defecto, `5433`. |
 | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | Nombre de la base, usuario y contraseña de desarrollo. |
+| `SESSION_SECRET` | Clave de firma del identificador de sesión. Solo en el servidor. |
+| `NODE_ENV` | `development` para HTTP local; en `production` la cookie exige HTTPS. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE` | Servidor SMTP; valores de desarrollo para Mailpit en `env.local`. |
+| `SMTP_FROM` | Remitente de los correos de recuperación. |
+| `SMTP_USER`, `SMTP_PASSWORD` | Credenciales opcionales si el proveedor SMTP las requiere. |
 
 Si cambias `DB_PORT` después de levantar PostgreSQL, vuelve a ejecutar `docker compose up -d --wait`.
 
@@ -46,7 +59,7 @@ Para detener el entorno, presiona `Ctrl+C` en la terminal de la API y ejecuta `d
 src/
 ├── app.js              # Configuración de Express y montaje de rutas
 ├── server.js           # Verificación de la conexión y arranque de la API
-├── middleware/         # Autenticación HTTP Basic y autorización por rol
+├── middleware/         # Cookies, HTTP Basic y autorización por rol
 ├── routes/             # Definición de rutas de Express
 ├── controllers/        # Controladores HTTP (sin acceso directo a base de datos)
 ├── services/           # Reglas de negocio y validaciones de dominio
@@ -61,6 +74,8 @@ El proyecto usa módulos ECMAScript (ESM) con `"type": "module"`. `src/models` c
 
 `npm run db:migrate` crea el esquema compartido y sus migraciones incrementales, incluidas las tablas `usuarios`, `trabajos`, `autores_trabajo`, `intereses_revisor`, `asignaciones_revision`, `historial_asignaciones`, `recordatorios_revision`, `revisiones`, `criterios`, `revision_criterios` y `decisiones`. Ejecuta este comando al preparar una base nueva y después de incorporar migraciones.
 
+La migración de Historia 1 agrega `sesiones` y `recuperaciones_contrasena`. Se utiliza el esquema compartido y migraciones; si preparaste antes una base con tablas inglesas mediante `db:sync`, conserva esa base y configura otra para ejecutar estas migraciones. El registro crea sus cuentas en `usuarios`.
+
 Si aplicaste las migraciones preliminares de la rama del PR #1, conserva esa base y configura otra en `.env` para ejecutar la migración compartida. En Docker, un volumen de PostgreSQL ya inicializado conserva la base anterior aunque cambies `POSTGRES_DB`; crea la nueva base en PostgreSQL antes de ejecutar la migración.
 
 Para cargar los datos de ejemplo de registro, asignación y evaluación, define `DEMO_PASSWORD` con al menos 12 caracteres en `.env` y ejecuta `npm run db:seed` en la base local. Las cuentas nuevas usan esa contraseña. Las cuentas existentes conservan sus credenciales. Los seeders pueden ejecutarse de nuevo sin duplicar filas y registran las filas que crean para una reversión selectiva. Las cargas anteriores sin ese registro se conservan. Si una fila registrada tiene dependencias ajenas a la demo, la reversión se cancela en su totalidad.
@@ -71,6 +86,61 @@ Para cargar los datos de ejemplo de registro, asignación y evaluación, define 
 | Comité | `ana.salazar@ulima.edu.pe` |
 | Autora | `rosa.quispe@aloe.ulima.edu.pe` |
 
+## Cuentas, sesiones y recuperación (Historia 1)
+
+| Método | Ruta | Acceso y operación |
+| --- | --- | --- |
+| POST | `/api/usuarios` | Público. Registra autor, revisor o ambos. |
+| POST | `/api/usuarios/sesiones` | Inicia sesión y emite cookie. |
+| GET | `/api/usuarios/sesiones` | Consulta la cuenta autenticada. |
+| DELETE | `/api/usuarios/sesiones` | Cierra la sesión y elimina la cookie. |
+| GET, PATCH | `/api/usuarios/perfil` | Autor/revisor/ambos: consulta o edita su propio perfil e intereses. |
+| PUT | `/api/usuarios/contrasena` | Cambia contraseña comprobando la actual. |
+| GET | `/api/usuarios/asignaciones` | Revisor/ambos: sus asignaciones reales. |
+| GET | `/api/usuarios/trabajos/:codigo/acceso` | Autor/ambos: comprueba propiedad del trabajo. |
+| POST | `/api/usuarios/recuperaciones` | Público. Solicita un código por correo. |
+| POST | `/api/usuarios/recuperaciones/verificacion` | Comprueba el código y entrega una prueba temporal. |
+| POST | `/api/usuarios/recuperaciones/contrasena` | Restablece la contraseña con esa prueba. |
+
+Las respuestas usan `{ status: 'success', data }`. Los errores usan `{ status: 'error', mensaje, errores? }`; `errores` contiene mensajes por campo. Se devuelve 400 para datos inválidos, 401 para sesión/credenciales inválidas, 403 para permisos insuficientes y 409 para duplicados o conflictos.
+
+### Registro
+
+Envía `names`, `surnames`, `email`, `institution`, `role`, `degree`, `studentCode`, `acceptedTerms`, `password` y `confirmPassword`. Las cuentas públicas solo pueden elegir `author`, `reviewer` o `both`. Autor y Ambos exigen carrera y código de 1 a 20 dígitos; para Revisor esos campos se guardan nulos. El correo debe pertenecer a `ulima.edu.pe` o `aloe.ulima.edu.pe` y se normaliza a minúsculas. `acceptedTerms` debe ser el booleano `true`.
+
+La contraseña necesita 8 caracteres, una mayúscula y un número; admite hasta 72 bytes UTF-8. Se guarda con bcrypt y factor 12. Las cuentas de ejemplo con hashes scrypt siguen funcionando y su hash se actualiza a bcrypt al autenticarlas. La respuesta pública nunca incluye contraseña ni hash. El alta devuelve 201; el frontend inicia sesión a continuación.
+
+### Sesión y permisos
+
+```bash
+curl -i -c /tmp/congreso-cookies.txt http://127.0.0.1:3000/api/usuarios/sesiones \
+  -H 'Content-Type: application/json' \
+  -d '{"correo":"rosa.quispe@aloe.ulima.edu.pe","contrasena":"TU_CLAVE_DEMO","recordar":false}'
+curl -b /tmp/congreso-cookies.txt http://127.0.0.1:3000/api/usuarios/sesiones
+curl -b /tmp/congreso-cookies.txt -X DELETE http://127.0.0.1:3000/api/usuarios/sesiones
+```
+
+`congreso.sid` lleva un identificador firmado; los datos están en PostgreSQL. La cookie es HttpOnly, SameSite=Lax, con ruta `/api` y Secure en producción. Sin Recordarme es una cookie de sesión del navegador y el store tiene 8 horas de inactividad. Con Recordarme su duración es de 7 días. El login regenera el identificador; la sesión sobrevive a reinicios conservando la clave y PostgreSQL. Un despliegue HTTPS detrás de proxy debe configurar la confianza en su proxy según el entorno.
+
+Cada operación privada vuelve a comprobar usuario, bloqueo y rol en PostgreSQL. También se detecta una contraseña cambiada desde otra sesión. El cambio de contraseña conserva la sesión actual mediante una cookie nueva y elimina las demás; la recuperación invalida todas. HTTP Basic continúa disponible para las rutas de otras historias y sus comandos de ejemplo.
+
+CORS permite los orígenes configurados con credenciales; un origen de navegador ajeno recibe 403. En React se utiliza `credentials: 'include'` y el proxy `/api` de Vite. Las visitas públicas no guardan sesiones vacías ni generan cookies de autenticación.
+
+### Perfil y actividad
+
+PATCH recibe `names`, `surnames`, `institution` y, para revisor/ambos, `interestIds` con IDs de los ejes vigentes. El usuario se obtiene de la sesión: no se acepta un ID del cliente para editar otras cuentas. El correo no se cambia en esta operación. El rol y el bloqueo se administran fuera del perfil personal.
+
+GET devuelve la ficha pública, los IDs de intereses y `actividad` con `asignadas`, `entregadas`, `pendientes` y `vencidas`. Los contadores se calculan desde asignaciones y evaluaciones; un borrador no es una entrega y una vencida sigue pendiente.
+
+### Recuperación por correo
+
+1. POST a `recuperaciones` con `{ correo }` devuelve 202 y el mismo mensaje para cuentas existentes o desconocidas.
+2. Si corresponde, el correo contiene seis dígitos. En local se consulta Mailpit; con un proveedor real se configuran las variables SMTP.
+3. POST a `recuperaciones/verificacion` con `{ correo, codigo }` devuelve `{ token }` si es válido.
+4. POST a `recuperaciones/contrasena` con `{ token, contrasena, confirmacion }` cambia la contraseña.
+
+La solicitud vence a los 30 minutos, también al guardar la contraseña. Hay 120 segundos entre envíos y cinco intentos de código. Código y prueba son de un solo uso; PostgreSQL guarda sus hashes, no los valores entregados. El código utiliza HMAC con la clave del servidor. Un reenvío invalida la solicitud anterior. La actualización y la invalidación de sesiones se ejecutan en una transacción.
+
 ## API de configuración de ediciones
 
 | Método | Ruta | Operación |
@@ -79,9 +149,9 @@ Para cargar los datos de ejemplo de registro, asignación y evaluación, define 
 | GET, PATCH | `/api/ediciones/:edicionId` | Consulta o modifica datos generales, cronograma o estado. |
 | GET, POST | `/api/ediciones/:edicionId/{ejes_tematicos,tipos_trabajo,criterios}` | Lista o crea elementos del catálogo seleccionado. |
 | PUT, DELETE | `/api/ediciones/:edicionId/{ejes_tematicos,tipos_trabajo,criterios}/:id` | Actualiza o elimina un elemento. |
-| POST, GET, DELETE | `/api/usuarios/sesiones` | Inicia, consulta o cierra la sesión web del comité. |
+| POST, GET, DELETE | `/api/usuarios/sesiones` | Inicia, consulta o cierra la sesión web. |
 
-Las lecturas de edición y catálogos son públicas. Para modificar la configuración, usa una cuenta de comité con HTTP Basic o la cookie de sesión emitida al iniciar sesión. La sesión de desarrollo caduca al reiniciar el backend. Envía las fechas en ISO 8601 con zona horaria, por ejemplo `2027-09-30T23:59:00-05:00`. Los registros de catálogo en uso devuelven `409` al intentar eliminarlos.
+Las lecturas de edición y catálogos son públicas. Para modificar la configuración, usa una cuenta de comité con HTTP Basic o la cookie de sesión emitida al iniciar sesión. Envía las fechas en ISO 8601 con zona horaria, por ejemplo `2027-09-30T23:59:00-05:00`. Los registros de catálogo en uso devuelven `409` al intentar eliminarlos.
 
 ## API de registro de trabajos
 
@@ -92,7 +162,7 @@ Las lecturas de edición y catálogos son públicas. Para modificar la configura
 
 ## API de asignación de revisiones (HU4)
 
-Todas las rutas de asignación requieren autenticación HTTP Basic con una cuenta del rol **comité** (`committee`). El prefijo de las rutas es `/api`.
+Todas las rutas de asignación requieren una cuenta del rol **comité** (`committee`), mediante cookie o HTTP Basic. El prefijo de las rutas es `/api`.
 
 | Método | Ruta | Acceso y operación |
 | --- | --- | --- |
@@ -116,7 +186,7 @@ curl --user ana.salazar@ulima.edu.pe http://127.0.0.1:3000/api/asignaciones_revi
 
 ## API de revisión y dictamen
 
-Las rutas de revisión y dictamen usan autenticación HTTP Basic con el correo y la contraseña de la cuenta. La API escucha en `127.0.0.1` en desarrollo. El prefijo de las rutas es `/api`.
+Las rutas de revisión y dictamen aceptan cookie de sesión o HTTP Basic. La API escucha en `127.0.0.1` en desarrollo. El prefijo de las rutas es `/api`.
 
 | Método | Ruta | Acceso y operación |
 | --- | --- | --- |
