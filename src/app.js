@@ -1,4 +1,5 @@
 import express from 'express'
+import { cors } from './middleware/cors.js'
 import { healthRouter } from './routes/health.js'
 import revisionesRouter from './routes/revisiones.js'
 import asignacionesRouter from './routes/asignaciones.js'
@@ -6,6 +7,8 @@ import trabajosRouter from './routes/trabajos.js'
 import edicionesRouter from './routes/ediciones.js'
 
 export const app = express()
+
+app.use('/api', cors)
 
 // Permite leer el cuerpo JSON de las peticiones (POST/PUT/DELETE)
 app.use(express.json())

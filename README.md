@@ -21,6 +21,7 @@ Edita `.env` antes de levantar los servicios si necesitas cambiar los valores de
 | Variable | Uso |
 | --- | --- |
 | `PORT` | Puerto local de la API. Por defecto, `3000`. |
+| `FRONTEND_ORIGINS` | Orígenes del frontend permitidos por CORS, separados por comas. Por defecto, `http://localhost:5173` y `http://127.0.0.1:5173`. |
 | `DB_HOST` | Host que usa la API para conectarse a PostgreSQL. Usa `127.0.0.1` con el Compose incluido. |
 | `DB_PORT` | Puerto local publicado por Compose. Por defecto, `5433`. |
 | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | Nombre de la base, usuario y contraseña de desarrollo. |
