@@ -54,3 +54,34 @@ El proyecto usa módulos ECMAScript (ESM) con `"type": "module"` en `package.jso
 ## Integración con el frontend
 
 El frontend usa React y Vite. Los repositorios de `src/core/utils/repositories.js` exponen `get()`, `save()` y `remove()` asíncronos. Esos repositorios son el punto de integración para adoptar las rutas de la API a medida que se implementan. En esta etapa la API ofrece la ruta de diagnóstico y los datos del congreso siguen en el almacenamiento del navegador.
+
+## Base de datos con Sequelize CLI (HU5)
+
+Las tablas se crean con migraciones de `sequelize-cli`, como en los laboratorios del curso. Los archivos de Sequelize usan `.cjs` porque la herramienta trabaja con CommonJS. Con PostgreSQL en ejecución, ya sea el instalado en Windows (ajusta `DB_PORT`, `POSTGRES_USER` y `POSTGRES_PASSWORD` en `.env`) o el de `docker compose up -d --wait`:
+
+```bash
+npx sequelize-cli db:migrate --options-path .sequelizerc.cjs
+npx sequelize-cli db:seed:all --options-path .sequelizerc.cjs
+```
+
+Para volver a empezar: `db:seed:undo:all` y `db:migrate:undo:all` con la misma opción `--options-path`.
+
+| Tabla               | Relación                                                                  |
+| ------------------- | ------------------------------------------------------------------------- |
+| `usuarios`          | Un usuario (autor) tiene muchos trabajos y (revisor) muchas revisiones    |
+| `trabajos`          | Pertenece a un autor; tiene una o varias revisiones y una decisión        |
+| `revisions`         | Pertenece a un trabajo y a un revisor; tiene una nota por cada criterio   |
+| `criterios`         | Criterios de evaluación con su peso (suman 100)                           |
+| `revisionCriterios` | Nota (0 a 20) y comentario de una revisión en un criterio                 |
+| `decisions`         | Pertenece a un trabajo (dictamen final del comité)                        |
+
+Rutas de la HU5 (prefijo `/api/hu5`):
+
+| Método | Ruta                          | Uso                                                     |
+| ------ | ----------------------------- | ------------------------------------------------------- |
+| GET    | `/revisiones`                 | Revisiones con trabajo, revisor y notas por criterio    |
+| GET    | `/trabajos-revisiones`        | Trabajos con autor, revisiones y decisión               |
+| GET    | `/decisiones`                 | Decisiones del comité con su trabajo                    |
+| GET    | `/consolidado/:trabajoId`     | Notas ponderadas y promedio de las revisiones enviadas  |
+| PUT    | `/revisiones/:id`             | Guarda borrador o envía la evaluación con sus notas     |
+| PUT    | `/decisiones/:trabajoId`      | Guarda o publica la decisión final                      |
