@@ -1,3 +1,6 @@
+const { basename } = require('node:path');
+const { cargarDemo, passwordDemo, revertirDemo } = require('../demo/registrar.cjs');
+
 const nombreEdicion = 'Congreso Académico Estudiantil (demo HU5)';
 const usuarios = [
   ['Rosa María', 'Quispe Ttito', 'rosa.quispe@aloe.ulima.edu.pe', 'author'],
@@ -28,95 +31,94 @@ const evaluaciones = [
 ];
 
 module.exports = {
-  async up() {
-    const password = process.env.HU5_DEMO_PASSWORD;
-    if (!password || password.length < 12) {
-      throw new Error('Define HU5_DEMO_PASSWORD en .env con al menos 12 caracteres para crear las cuentas de ejemplo.');
-    }
+  async up(query) {
+    const password = passwordDemo();
     const { crearHash } = await import('../../services/password.js');
     const {
-      sequelize, Usuario, Edicion, Criterio, EjeTematico, TipoTrabajo, Trabajo,
+      Usuario, Edicion, Criterio, EjeTematico, TipoTrabajo, Trabajo,
       AsignacionRevision, Revision, RevisionCriterio, Decision,
     } = await import('../../models/index.js');
 
-    try {
-      const cuentas = await Promise.all(usuarios.map(async ([names, surnames, email, role, institucion]) => ({
-        names, surnames, email, role, institution: institucion ?? 'Universidad de Lima',
-        passwordHash: await crearHash(password),
-      })));
-      await sequelize.transaction(async transaction => {
-        const opciones = { transaction, validate: true, returning: true };
-        const edicion = await Edicion.create({
-          name: nombreEdicion, year: 2026, venue: 'Universidad de Lima', status: 'under_review',
-          receptionDeadline: '2026-09-30T23:59:00-05:00',
-          reviewDeadline: '2026-10-15T23:59:00-05:00',
-          publicationDate: '2026-10-20T09:00:00-05:00',
-        }, opciones);
-        const editionId = edicion.id;
-        const personas = await Usuario.bulkCreate(cuentas, opciones);
-        const rubrica = await Criterio.bulkCreate(criterios.map(([name, description, weight]) =>
-          ({ name, description, weight, editionId })), opciones);
-        const ejes = await EjeTematico.bulkCreate(['Inteligencia artificial y datos', 'Sostenibilidad y ciudad']
-          .map(name => ({ name, editionId, description: name, coordinator: personas[5].fullName })), opciones);
-        const tipos = await TipoTrabajo.bulkCreate([
-          ['Artículo completo', '8 000 palabras'],
-          ['Resumen extendido', '2 000 palabras'],
-          ['Caso de estudio', '4 000 palabras'],
-        ].map(([name, maxLength]) => ({ name, maxLength, editionId, allowsCoauthors: false })), opciones);
-        const trabajosCreados = await Trabajo.bulkCreate(trabajos.map(([code, title, autor, eje, status], i) => ({
-          code, title, status, editionId, ownerId: personas[autor].id, thematicAxisId: ejes[eje].id,
-          workTypeId: tipos[i].id,
-        })), opciones);
-        for (const [obra, revisor, dueDate, recommendation, authorComment, committeeComment, notas] of evaluaciones) {
-          const asignacion = await AsignacionRevision.create({
-            workId: trabajosCreados[obra].id, reviewerId: personas[revisor].id, dueDate,
-          }, opciones);
-          const revision = await Revision.create({
-            assignmentId: asignacion.id,
-            status: notas ? 'submitted' : 'draft',
-            recommendation, authorComment, committeeComment,
-            submittedAt: notas ? new Date(dueDate + 'T12:00:00-05:00') : null,
-          }, opciones);
-          if (notas) {
-            await RevisionCriterio.bulkCreate(rubrica.map((criterio, i) => ({
-              reviewId: revision.id, criterionId: criterio.id, criterionName: criterio.name,
-              criterionWeight: criterio.weight, score: notas[i],
-              comment: `Comentario sobre ${criterio.name.toLowerCase()}.`,
-            })), opciones);
-          }
-        }
-
-        await Decision.bulkCreate([
-          [1, 'accept', 'El trabajo cumple los criterios del congreso.'],
-          [2, 'reject', 'La metodología no sustenta las conclusiones.'],
-        ].map(([obra, result, feedback]) => ({
-          workId: trabajosCreados[obra].id, result, feedback,
-          status: 'published', publishedAt: edicion.publicationDate,
-        })), opciones);
+    await cargarDemo(query, basename(__filename), async ({ crear, crearVarios, buscarOCrear }) => {
+      const [edicion] = await buscarOCrear(Edicion, { year: 2026 }, {
+        name: nombreEdicion, venue: 'Universidad de Lima', status: 'under_review',
+        receptionDeadline: '2026-09-30T23:59:00-05:00',
+        reviewDeadline: '2026-10-15T23:59:00-05:00',
+        publicationDate: '2026-10-20T09:00:00-05:00',
       });
-    } finally {
-      await sequelize.close();
-    }
+      const editionId = edicion.id;
+      const personas = [];
+      for (const [names, surnames, email, role, institucion] of usuarios) {
+        const [persona] = await buscarOCrear(Usuario, { email }, {
+          names, surnames, role, institution: institucion ?? 'Universidad de Lima',
+          passwordHash: await crearHash(password), isFemale: ['Rosa María', 'Mg. Carmen', 'Dra. Ana'].includes(names),
+        });
+        personas.push(persona);
+      }
+
+      const rubrica = [];
+      for (const [name, description, weight] of criterios) {
+        const [criterio] = await buscarOCrear(Criterio, { editionId, name }, { description, weight });
+        rubrica.push(criterio);
+      }
+      const ejes = [];
+      for (const name of ['Inteligencia artificial y datos', 'Sostenibilidad y ciudad']) {
+        const [eje] = await buscarOCrear(EjeTematico, { editionId, name }, {
+          description: name, coordinator: personas[5].fullName,
+        });
+        ejes.push(eje);
+      }
+      const tipos = [];
+      for (const [name, maxLength] of [
+        ['Artículo completo', '8 000 palabras'],
+        ['Resumen extendido', '2 000 palabras'],
+        ['Caso de estudio', '4 000 palabras'],
+      ]) {
+        const [tipo] = await buscarOCrear(TipoTrabajo, { editionId, name }, { maxLength, allowsCoauthors: false });
+        tipos.push(tipo);
+      }
+
+      const trabajosCreados = [];
+      for (const [i, [code, title, autor, eje, status]] of trabajos.entries()) {
+        const [trabajo, creado] = await buscarOCrear(Trabajo, { code }, {
+          title, status, editionId, ownerId: personas[autor].id, thematicAxisId: ejes[eje].id,
+          workTypeId: tipos[i].id,
+        });
+        if (creado) trabajosCreados[i] = trabajo;
+      }
+      for (const [obra, revisor, dueDate, recommendation, authorComment, committeeComment, notas] of evaluaciones) {
+        const trabajo = trabajosCreados[obra];
+        if (!trabajo) continue;
+        const asignacion = await crear(AsignacionRevision, {
+          workId: trabajo.id, reviewerId: personas[revisor].id, dueDate,
+        });
+        const revision = await crear(Revision, {
+          assignmentId: asignacion.id,
+          status: notas ? 'submitted' : 'draft',
+          recommendation, authorComment, committeeComment,
+          submittedAt: notas ? new Date(dueDate + 'T12:00:00-05:00') : null,
+        });
+        if (notas) {
+          await crearVarios(RevisionCriterio, rubrica.map((criterio, i) => ({
+            reviewId: revision.id, criterionId: criterio.id, criterionName: criterio.name,
+            criterionWeight: criterio.weight, score: notas[i],
+            comment: `Comentario sobre ${criterio.name.toLowerCase()}.`,
+          })));
+        }
+      }
+      for (const [obra, result, feedback] of [
+        [1, 'accept', 'El trabajo cumple los criterios del congreso.'],
+        [2, 'reject', 'La metodología no sustenta las conclusiones.'],
+      ]) {
+        const trabajo = trabajosCreados[obra];
+        if (trabajo) await crear(Decision, {
+          workId: trabajo.id, result, feedback, status: 'published', publishedAt: edicion.publicationDate,
+        });
+      }
+    });
   },
 
   async down(query) {
-    await query.sequelize.transaction(async transaction => {
-      const [edicion] = await query.sequelize.query(
-        'SELECT id FROM ediciones WHERE year = 2026 AND name = :nombre',
-        { replacements: { nombre: nombreEdicion }, transaction },
-      );
-      if (!edicion.length) return;
-      await query.bulkDelete('ediciones', { id: edicion[0].id }, { transaction });
-      await query.sequelize.query(
-        `DELETE FROM usuarios u WHERE u.email IN (:correos)
-          AND NOT EXISTS (SELECT 1 FROM trabajos WHERE owner_id = u.id)
-          AND NOT EXISTS (SELECT 1 FROM asignaciones_revision WHERE reviewer_id = u.id)
-          AND NOT EXISTS (SELECT 1 FROM autores_trabajo WHERE user_id = u.id)
-          AND NOT EXISTS (SELECT 1 FROM sesiones_programa WHERE moderator_id = u.id)
-          AND NOT EXISTS (SELECT 1 FROM recordatorios_revision WHERE sent_by_id = u.id)
-          AND NOT EXISTS (SELECT 1 FROM intereses_revisor WHERE user_id = u.id)`,
-        { replacements: { correos: usuarios.map(([, , correo]) => correo) }, transaction },
-      );
-    });
+    await revertirDemo(query, basename(__filename));
   },
 };

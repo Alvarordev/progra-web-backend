@@ -6,7 +6,6 @@ import {
   guardarDecision,
   guardarRevision,
   revisiones,
-  trabajos_revisiones,
 } from '../controllers/RevisionBDController.js'
 
 const router = Router()
@@ -14,7 +13,6 @@ const revisar = permitirRoles('reviewer', 'both')
 const comite = permitirRoles('committee')
 
 router.get('/revisiones', autenticar, permitirRoles('reviewer', 'both', 'committee'), revisiones)
-router.get('/trabajos', autenticar, comite, trabajos_revisiones)
 router.get('/decisiones', autenticar, permitirRoles('author', 'both', 'committee'), decisiones)
 router.get('/trabajos/:trabajoId/revisiones', autenticar, comite, consolidado)
 router.put('/revisiones/:id', autenticar, revisar, guardarRevision)

@@ -75,7 +75,7 @@ function buscarTrabajo(id) {
   return Trabajo.findByPk(id, { include: ['workType', 'thematicAxis', 'authors'] })
 }
 
-// MEOTODO GET /api/mis-trabajos/opciones
+// MEOTODO GET /api/trabajos/ediciones
 // Datos para llenar el formulario --> la edición abierta, sus ejes y sus tipos de trabajo
 export async function opciones(req, res) {
   const edicion = await buscarEdicionAbierta()
@@ -94,7 +94,7 @@ export async function opciones(req, res) {
   })
 }
 
-// POST /api/mis-trabajos
+// POST /api/trabajos
 // Crea un trabajo nuevo como borrador o enviado
 export async function crearTrabajo(req, res) {
   const datos = { estado: 'borrador', ...req.body }

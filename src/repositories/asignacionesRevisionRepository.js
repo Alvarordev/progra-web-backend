@@ -161,6 +161,13 @@ export async function obtenerAsignacionPorId(
       transaction,
       lock: transaction.LOCK.UPDATE,
     })
+    // El envío de evaluaciones de la HU5 bloquea esta misma fila.
+    await Revision.findOne({
+      where: { assignmentId: base.id },
+      attributes: ['id'],
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    })
   }
 
   return AsignacionRevision.findByPk(id, {

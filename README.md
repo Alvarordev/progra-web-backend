@@ -62,7 +62,7 @@ El proyecto usa módulos ECMAScript (ESM) con `"type": "module"`. `src/models` c
 
 Si aplicaste las migraciones preliminares de la rama del PR #1, conserva esa base y configura otra en `.env` para ejecutar la migración compartida. En Docker, un volumen de PostgreSQL ya inicializado conserva la base anterior aunque cambies `POSTGRES_DB`; crea la nueva base en PostgreSQL antes de ejecutar la migración.
 
-Para probar la HU4 y la HU5 con el conjunto de ejemplo, configura `HU5_DEMO_PASSWORD` (o `HU4_DEMO_PASSWORD`) con una contraseña de al menos 12 caracteres en la base local de pruebas y ejecuta `npm run db:seed`. Todas las cuentas de ejemplo usan esa contraseña. Los seeders se registran en la base para que repetir el comando no duplique los datos.
+Para cargar los datos de ejemplo de registro, asignación y evaluación, define `DEMO_PASSWORD` con al menos 12 caracteres en `.env` y ejecuta `npm run db:seed` en la base local. Las cuentas nuevas usan esa contraseña. Las cuentas existentes conservan sus credenciales. Los seeders pueden ejecutarse de nuevo sin duplicar filas y registran las filas que crean para una reversión selectiva. Las cargas anteriores sin ese registro se conservan. Si una fila registrada tiene dependencias ajenas a la demo, la reversión se cancela en su totalidad.
 
 | Rol de ejemplo | Correo |
 | --- | --- |
@@ -70,28 +70,35 @@ Para probar la HU4 y la HU5 con el conjunto de ejemplo, configura `HU5_DEMO_PASS
 | Comité | `ana.salazar@ulima.edu.pe` |
 | Autora | `rosa.quispe@aloe.ulima.edu.pe` |
 
+## API de registro de trabajos
+
+| Método | Ruta | Acceso y operación |
+| --- | --- | --- |
+| GET | `/api/trabajos/ediciones` | El autor consulta la edición, los ejes y los tipos para registrar un trabajo. |
+| POST | `/api/trabajos` | El autor registra un borrador o envía un trabajo. |
+
 ## API de asignación de revisiones (HU4)
 
 Todas las rutas de asignación requieren autenticación HTTP Basic con una cuenta del rol **comité** (`committee`). El prefijo de las rutas es `/api`.
 
 | Método | Ruta | Acceso y operación |
 | --- | --- | --- |
-| GET | `/trabajos-recibidos` | Lista trabajos enviados con resumen de métricas, número de revisiones asignadas/entregadas, filtros (`eje`, `tipo`, `estado`, `busqueda`) y paginación opcional (`pagina`, `porPagina`). |
-| GET | `/asignaciones/candidatos` | Evalúa revisores candidatos para uno o varios trabajos (`trabajoIds` o `codigos`), devolviendo su carga actual y detección de conflictos (`coautor`, `institucion`, `ninguno`). |
-| POST | `/trabajos-recibidos/:trabajoId/asignaciones` | Asigna revisores a un trabajo validando mínimo 2 / máximo 3 revisores, bloqueo por coautoría y justificación obligatoria ante misma institución. |
-| POST | `/asignaciones/lote` | Asigna revisores de forma atómica a varios trabajos seleccionados (`trabajoIds` o `codigosTrabajo`). |
-| GET | `/revisores` | Lista revisores con sus líneas de interés y carga actual (`asignadas`, `entregadas`, `pendientes`, `vencidas`), con filtros (`linea`, `institucion`, `soloVencidas`, `busqueda`). |
-| PUT | `/asignaciones/:id/reasignar` | Reasigna una revisión pendiente a otro revisor disponible dejando el `motivo` registrado en `historial_asignaciones`. |
-| DELETE | `/asignaciones/:id` | Retira a un revisor cuya evaluación aún no ha sido enviada, registrando el `motivo` obligatorio en `historial_asignaciones`. |
-| GET | `/trabajos-recibidos/:trabajoId/historial-asignaciones` | Consulta la bitácora auditable de asignaciones, reasignaciones y retiros de un trabajo. |
-| GET | `/seguimiento-revisiones` | Lista revisiones pendientes ordenadas primero las vencidas y luego por fecha límite ascendente, con alerta sobre vencidas y resumen global. |
-| POST | `/asignaciones/:id/recordatorios` | Registra un recordatorio individual sobre una revisión pendiente. |
-| POST | `/asignaciones/recordatorios` | Registra recordatorios masivos para todas las revisiones pendientes (o filtradas por `soloVencidas` / `asignacionIds`). |
+| GET | `/trabajos?vista=recibidos` | Lista trabajos enviados con resumen de métricas, número de revisiones asignadas/entregadas, filtros (`eje`, `tipo`, `estado`, `busqueda`) y paginación opcional (`pagina`, `porPagina`). |
+| GET | `/asignaciones_revision/usuarios` | Evalúa revisores candidatos para uno o varios trabajos (`trabajoIds` o `codigos`), devolviendo su carga actual y detección de conflictos (`coautor`, `institucion`, `ninguno`). |
+| POST | `/trabajos/:trabajoId/asignaciones_revision` | Asigna revisores a un trabajo validando mínimo 2 / máximo 3 revisores, bloqueo por coautoría y justificación obligatoria ante misma institución. |
+| POST | `/asignaciones_revision` | Asigna revisores de forma atómica a varios trabajos seleccionados (`trabajoIds` o `codigosTrabajo`). |
+| GET | `/usuarios` | Lista revisores con sus líneas de interés y carga actual (`asignadas`, `entregadas`, `pendientes`, `vencidas`), con filtros (`linea`, `institucion`, `soloVencidas`, `busqueda`). |
+| PUT | `/asignaciones_revision/:id` | Reasigna una revisión pendiente a otro revisor disponible dejando el `motivo` registrado en `historial_asignaciones`. |
+| DELETE | `/asignaciones_revision/:id` | Retira a un revisor cuya evaluación aún no ha sido enviada, registrando el `motivo` obligatorio en `historial_asignaciones`. |
+| GET | `/trabajos/:trabajoId/historial_asignaciones` | Consulta la bitácora auditable de asignaciones, reasignaciones y retiros de un trabajo. |
+| GET | `/asignaciones_revision` | Lista revisiones pendientes ordenadas primero las vencidas y luego por fecha límite ascendente, con alerta sobre vencidas y resumen global. |
+| POST | `/asignaciones_revision/:id/recordatorios_revision` | Registra un recordatorio individual sobre una revisión pendiente. |
+| POST | `/recordatorios_revision` | Registra recordatorios masivos para todas las revisiones pendientes (o filtradas por `soloVencidas` / `asignacionIds`). |
 
 ```bash
-curl --user ana.salazar@ulima.edu.pe http://127.0.0.1:3000/api/trabajos-recibidos
-curl --user ana.salazar@ulima.edu.pe http://127.0.0.1:3000/api/revisores
-curl --user ana.salazar@ulima.edu.pe http://127.0.0.1:3000/api/seguimiento-revisiones
+curl --user ana.salazar@ulima.edu.pe 'http://127.0.0.1:3000/api/trabajos?vista=recibidos'
+curl --user ana.salazar@ulima.edu.pe http://127.0.0.1:3000/api/usuarios
+curl --user ana.salazar@ulima.edu.pe http://127.0.0.1:3000/api/asignaciones_revision
 ```
 
 ## API de revisión y dictamen

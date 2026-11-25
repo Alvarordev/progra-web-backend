@@ -1,6 +1,6 @@
-// Datos de ejemplo HU-3 .-.
-// Crea una edición con la recepcin abierta, sus ejes temáticos, sus tipos de trabajo
-// crea 2 centas de autor que se ejecutan con --> npm run db:seed:hu3
+const { basename } = require('node:path');
+const { cargarDemo, passwordDemo, revertirDemo } = require('../demo/registrar.cjs');
+
 const ejes = [
   'Inteligencia artificial y datos',
   'Ingeniería de software',
@@ -25,56 +25,41 @@ const autores = [
 ];
 
 module.exports = {
-  async up(queryInterface) {
-    const password = process.env.HU3_DEMO_PASSWORD;
-    if (!password || password.length < 12) {
-      throw new Error('Agrega HU3_DEMO_PASSWORD en .env con una contraseña de al menos 12 caracteres.');
-    }
+  async up(query) {
+    const password = passwordDemo();
     const { crearHash } = await import('../../services/password.js');
-    const ahora = new Date();
+    const { Usuario, Edicion, EjeTematico, TipoTrabajo } = await import('../../models/index.js');
 
-    // 1. Cuentas de autor. Si ya existen (por la demo de la HU5), no se duplican.
-    for (const [nombres, apellidos, correo] of autores) {
-      await queryInterface.sequelize.query(
-        `INSERT INTO usuarios (names, surnames, email, password_hash, institution, role, accepted_terms, created_at, updated_at)
-         VALUES (?, ?, ?, ?, 'Universidad de Lima', 'author', true, ?, ?)
-         ON CONFLICT (email) DO NOTHING`,
-        { replacements: [nombres, apellidos, correo, await crearHash(password), ahora, ahora] },
-      );
-    }
+    await cargarDemo(query, basename(__filename), async ({ buscarOCrear }) => {
+      for (const [names, surnames, email] of autores) {
+        await buscarOCrear(Usuario, { email }, {
+          names, surnames, role: 'author', institution: 'Universidad de Lima',
+          acceptedTerms: true, passwordHash: await crearHash(password),
+        });
+      }
 
-    // 2. Edición 2027 con la recepción abierta hasta el 30/09/2027.
-    const [[edicion]] = await queryInterface.sequelize.query(
-      `INSERT INTO ediciones (name, year, venue, status, reception_deadline, review_deadline, publication_date, created_at, updated_at)
-       VALUES ('Congreso Académico Estudiantil (demo HU3)', 2027, 'Universidad de Lima', 'reception_open',
-               '2027-09-30T23:59:00-05:00', '2027-10-15T23:59:00-05:00', '2027-10-28T09:00:00-05:00', ?, ?)
-       RETURNING id`,
-      { replacements: [ahora, ahora] },
-    );
-
-    // 3. Ejes temáticos y tipos de trabajo de esa edición.
-    await queryInterface.bulkInsert('ejes_tematicos', ejes.map(nombre => ({
-      name: nombre,
-      description: nombre,
-      coordinator: 'Dra. Ana Salazar Bermúdez',
-      edition_id: edicion.id,
-      created_at: ahora,
-      updated_at: ahora,
-    })));
-    await queryInterface.bulkInsert('tipos_trabajo', tipos.map(([nombre, extension, formato, maxCoautores]) => ({
-      name: nombre,
-      max_length: extension,
-      expected_format: formato,
-      allows_coauthors: true,
-      max_coauthors: maxCoautores,
-      edition_id: edicion.id,
-      created_at: ahora,
-      updated_at: ahora,
-    })));
+      const [edicion] = await buscarOCrear(Edicion, { year: 2027 }, {
+        name: 'Congreso Académico Estudiantil (demo HU3)', venue: 'Universidad de Lima',
+        status: 'reception_open',
+        receptionDeadline: '2027-09-30T23:59:00-05:00',
+        reviewDeadline: '2027-10-15T23:59:00-05:00',
+        publicationDate: '2027-10-28T09:00:00-05:00',
+      });
+      const editionId = edicion.id;
+      for (const name of ejes) {
+        await buscarOCrear(EjeTematico, { editionId, name }, {
+          description: name, coordinator: 'Dra. Ana Salazar Bermúdez',
+        });
+      }
+      for (const [name, maxLength, expectedFormat, maxCoauthors] of tipos) {
+        await buscarOCrear(TipoTrabajo, { editionId, name }, {
+          maxLength, expectedFormat, allowsCoauthors: true, maxCoauthors,
+        });
+      }
+    });
   },
 
-  // Deshace la demo: al borrar la edición se borran sus ejes, tipos y trabajos.
-  async down(queryInterface) {
-    await queryInterface.bulkDelete('ediciones', { year: 2027, name: 'Congreso Académico Estudiantil (demo HU3)' });
+  async down(query) {
+    await revertirDemo(query, basename(__filename));
   },
 };
