@@ -45,26 +45,54 @@ Para detener el entorno, presiona `Ctrl+C` en la terminal de la API y ejecuta `d
 src/
 ├── app.js              # Configuración de Express y montaje de rutas
 ├── server.js           # Verificación de la conexión y arranque de la API
-├── routes/             # Rutas de Express y respuestas HTTP
-├── services/           # Operaciones que ejecutan las rutas
-└── db/                 # Conexión a PostgreSQL con Sequelize
+├── middleware/         # Autenticación HTTP Basic y autorización por rol
+├── routes/             # Definición de rutas de Express
+├── controllers/        # Controladores HTTP (sin acceso directo a base de datos)
+├── services/           # Reglas de negocio y validaciones de dominio
+├── repositories/       # Acceso a datos y transacciones con Sequelize
+├── models/             # Modelos compartidos de Sequelize
+└── db/                 # Conexión, migraciones y seeders de PostgreSQL
 ```
 
 El proyecto usa módulos ECMAScript (ESM) con `"type": "module"`. `src/models` contiene los modelos compartidos en español. La configuración de Sequelize CLI y las migraciones usan CommonJS.
 
 ## Base de datos y datos de ejemplo
 
-`npm run db:migrate` crea el esquema compartido, incluidas las tablas `usuarios`, `trabajos`, `asignaciones_revision`, `revisiones`, `criterios`, `revision_criterios` y `decisiones`. Ejecuta este comando al preparar una base nueva y después de incorporar migraciones.
+`npm run db:migrate` crea el esquema compartido y sus migraciones incrementales, incluidas las tablas `usuarios`, `trabajos`, `autores_trabajo`, `intereses_revisor`, `asignaciones_revision`, `historial_asignaciones`, `recordatorios_revision`, `revisiones`, `criterios`, `revision_criterios` y `decisiones`. Ejecuta este comando al preparar una base nueva y después de incorporar migraciones.
 
 Si aplicaste las migraciones preliminares de la rama del PR #1, conserva esa base y configura otra en `.env` para ejecutar la migración compartida. En Docker, un volumen de PostgreSQL ya inicializado conserva la base anterior aunque cambies `POSTGRES_DB`; crea la nueva base en PostgreSQL antes de ejecutar la migración.
 
-Para probar la HU5 con el conjunto de ejemplo del PR, configura `HU5_DEMO_PASSWORD` con una contraseña de al menos 12 caracteres en la base local de pruebas y ejecuta `npm run db:seed`. Todas las cuentas de ejemplo usan esa contraseña. El seeder se registra en la base para que repetir el comando no duplique los datos.
+Para probar la HU4 y la HU5 con el conjunto de ejemplo, configura `HU5_DEMO_PASSWORD` (o `HU4_DEMO_PASSWORD`) con una contraseña de al menos 12 caracteres en la base local de pruebas y ejecuta `npm run db:seed`. Todas las cuentas de ejemplo usan esa contraseña. Los seeders se registran en la base para que repetir el comando no duplique los datos.
 
 | Rol de ejemplo | Correo |
 | --- | --- |
 | Revisor con una evaluación en borrador | `luis.ramirez@ulima.edu.pe` |
 | Comité | `ana.salazar@ulima.edu.pe` |
 | Autora | `rosa.quispe@aloe.ulima.edu.pe` |
+
+## API de asignación de revisiones (HU4)
+
+Todas las rutas de asignación requieren autenticación HTTP Basic con una cuenta del rol **comité** (`committee`). El prefijo de las rutas es `/api`.
+
+| Método | Ruta | Acceso y operación |
+| --- | --- | --- |
+| GET | `/trabajos-recibidos` | Lista trabajos enviados con resumen de métricas, número de revisiones asignadas/entregadas, filtros (`eje`, `tipo`, `estado`, `busqueda`) y paginación opcional (`pagina`, `porPagina`). |
+| GET | `/asignaciones/candidatos` | Evalúa revisores candidatos para uno o varios trabajos (`trabajoIds` o `codigos`), devolviendo su carga actual y detección de conflictos (`coautor`, `institucion`, `ninguno`). |
+| POST | `/trabajos-recibidos/:trabajoId/asignaciones` | Asigna revisores a un trabajo validando mínimo 2 / máximo 3 revisores, bloqueo por coautoría y justificación obligatoria ante misma institución. |
+| POST | `/asignaciones/lote` | Asigna revisores de forma atómica a varios trabajos seleccionados (`trabajoIds` o `codigosTrabajo`). |
+| GET | `/revisores` | Lista revisores con sus líneas de interés y carga actual (`asignadas`, `entregadas`, `pendientes`, `vencidas`), con filtros (`linea`, `institucion`, `soloVencidas`, `busqueda`). |
+| PUT | `/asignaciones/:id/reasignar` | Reasigna una revisión pendiente a otro revisor disponible dejando el `motivo` registrado en `historial_asignaciones`. |
+| DELETE | `/asignaciones/:id` | Retira a un revisor cuya evaluación aún no ha sido enviada, registrando el `motivo` obligatorio en `historial_asignaciones`. |
+| GET | `/trabajos-recibidos/:trabajoId/historial-asignaciones` | Consulta la bitácora auditable de asignaciones, reasignaciones y retiros de un trabajo. |
+| GET | `/seguimiento-revisiones` | Lista revisiones pendientes ordenadas primero las vencidas y luego por fecha límite ascendente, con alerta sobre vencidas y resumen global. |
+| POST | `/asignaciones/:id/recordatorios` | Registra un recordatorio individual sobre una revisión pendiente. |
+| POST | `/asignaciones/recordatorios` | Registra recordatorios masivos para todas las revisiones pendientes (o filtradas por `soloVencidas` / `asignacionIds`). |
+
+```bash
+curl --user ana.salazar@ulima.edu.pe http://127.0.0.1:3000/api/trabajos-recibidos
+curl --user ana.salazar@ulima.edu.pe http://127.0.0.1:3000/api/revisores
+curl --user ana.salazar@ulima.edu.pe http://127.0.0.1:3000/api/seguimiento-revisiones
+```
 
 ## API de revisión y dictamen
 

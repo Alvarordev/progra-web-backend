@@ -7,6 +7,7 @@ export const AsignacionRevision = sequelize.define(
   {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
     dueDate: { type: DataTypes.DATEONLY, allowNull: false },
+    conflictJustification: { type: DataTypes.TEXT },
   },
   {
     tableName: 'asignaciones_revision',

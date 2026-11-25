@@ -5,6 +5,7 @@ import { Edicion } from './Edicion.js'
 import { SesionPrograma } from './SesionPrograma.js'
 import { Revision } from './Revision.js'
 import { AsignacionRevision } from './AsignacionRevision.js'
+import { HistorialAsignacion } from './HistorialAsignacion.js'
 import { RecordatorioRevision } from './RecordatorioRevision.js'
 import { RevisionCriterio } from './RevisionCriterio.js'
 import { Sala } from './Sala.js'
@@ -73,6 +74,31 @@ RecordatorioRevision.belongsTo(AsignacionRevision, { as: 'assignment', ...requir
 Usuario.hasMany(RecordatorioRevision, { as: 'sentReminders', foreignKey: 'sentById', onDelete: 'SET NULL' })
 RecordatorioRevision.belongsTo(Usuario, { as: 'sentBy', foreignKey: 'sentById' })
 
+Trabajo.hasMany(HistorialAsignacion, {
+  as: 'assignmentHistory',
+  ...required('workId'),
+  onDelete: 'CASCADE',
+})
+HistorialAsignacion.belongsTo(Trabajo, { as: 'work', ...required('workId') })
+Usuario.hasMany(HistorialAsignacion, {
+  as: 'assignmentLogsAsReviewer',
+  foreignKey: 'reviewerId',
+  onDelete: 'SET NULL',
+})
+HistorialAsignacion.belongsTo(Usuario, { as: 'reviewer', foreignKey: 'reviewerId' })
+Usuario.hasMany(HistorialAsignacion, {
+  as: 'assignmentLogsAsPreviousReviewer',
+  foreignKey: 'previousReviewerId',
+  onDelete: 'SET NULL',
+})
+HistorialAsignacion.belongsTo(Usuario, { as: 'previousReviewer', foreignKey: 'previousReviewerId' })
+Usuario.hasMany(HistorialAsignacion, {
+  as: 'performedAssignmentLogs',
+  foreignKey: 'performedById',
+  onDelete: 'SET NULL',
+})
+HistorialAsignacion.belongsTo(Usuario, { as: 'performedBy', foreignKey: 'performedById' })
+
 // Dictamen del comité
 Trabajo.hasOne(Decision, { as: 'decision', ...required('workId'), onDelete: 'CASCADE' })
 Decision.belongsTo(Trabajo, { as: 'work', ...required('workId') })
@@ -98,6 +124,7 @@ export {
   SesionPrograma,
   Revision,
   AsignacionRevision,
+  HistorialAsignacion,
   RecordatorioRevision,
   RevisionCriterio,
   Sala,
