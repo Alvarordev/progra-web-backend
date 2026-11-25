@@ -1,132 +1,226 @@
-import db from '../db/models/index.cjs'
+import {
+  sequelize,
+  AsignacionRevision,
+  Criterio,
+  Decision,
+  Revision,
+  RevisionCriterio,
+  Trabajo,
+} from '../models/index.js'
 
-const RECOMENDACIONES = ['aceptar', 'observaciones', 'rechazar']
-const RESULTADOS = ['aceptar', 'rechazar']
+const recomendaciones = new Map([
+  ['aceptar', 'accept'],
+  ['observaciones', 'revisions'],
+  ['rechazar', 'reject'],
+])
+const recomendacionPublica = { accept: 'aceptar', revisions: 'observaciones', reject: 'rechazar' }
+const resultados = new Map([['aceptar', 'accept'], ['rechazar', 'reject']])
+const estadosTrabajo = {
+  draft: 'Borrador',
+  submitted: 'Enviado',
+  under_review: 'En revisión',
+  accepted: 'Aceptado',
+  rejected: 'Rechazado',
+}
+const datosTrabajo = ['owner', 'thematicAxis', 'workType']
+const datosAsignacion = ['reviewer', { association: 'work', include: datosTrabajo }]
 
-// Promedio ponderado de las notas de una revisión, redondeado a un decimal
-function notaPonderada(notas) {
-  const conPuntaje = notas.filter(n => n.puntaje !== null && n.criterio)
-  const pesoTotal = conPuntaje.reduce((total, n) => total + n.criterio.peso, 0)
-  if (pesoTotal === 0) {
-    return null
-  }
-  const suma = conPuntaje.reduce((total, n) => total + n.puntaje * n.criterio.peso, 0)
-  return Math.round((suma * 10) / pesoTotal) / 10
+function idValido(id) {
+  return /^[1-9]\d{0,9}$/.test(id) && Number(id) <= 2147483647
 }
 
-// ---------- Consultas (GET) ----------
+function error(res, codigo, mensaje) {
+  return res.status(codigo).json({ status: 'error', mensaje })
+}
 
-// HU5 - Parte revisor: revisiones con su trabajo, revisor y notas por criterio
-export const revisiones = async (req, res) => {
-  console.log('/revisiones invocado !')
-  const revisiones = await db.revision.findAll({
+function participante(usuario) {
+  const roles = { author: 'autor', reviewer: 'revisor', both: 'ambos', committee: 'comite' }
+  return {
+    id: usuario.id,
+    nombre: usuario.fullName,
+    correo: usuario.email,
+    rol: roles[usuario.role],
+    institucion: usuario.institution,
+  }
+}
+
+function fichaTrabajo(trabajo) {
+  return {
+    id: trabajo.id,
+    codigo: trabajo.code,
+    titulo: trabajo.title,
+    eje: trabajo.thematicAxis?.name,
+    tipo: trabajo.workType?.name,
+    estado: estadosTrabajo[trabajo.status],
+    autorId: trabajo.ownerId,
+  }
+}
+
+function fichaDecision(decision) {
+  if (!decision) return null
+  return {
+    id: decision.id,
+    trabajoId: decision.workId,
+    resultado: recomendacionPublica[decision.result],
+    retroalimentacion: decision.feedback,
+    estado: decision.status === 'published' ? 'publicada' : 'borrador',
+    fechaPublicacion: decision.publishedAt,
+  }
+}
+
+function fichaRevision(revision, asignacion, catalogo = []) {
+  const notas = new Map(revision.scores.map(nota => [nota.criterionId, nota]))
+  const criterios = catalogo.length
+    ? catalogo.map(criterio => notas.get(criterio.id) ?? {
+      criterionId: criterio.id,
+      criterionName: criterio.name,
+      criterionWeight: criterio.weight,
+      score: null,
+      comment: '',
+    })
+    : revision.scores
+  return {
+    id: revision.id,
+    trabajoId: asignacion.workId,
+    revisorId: asignacion.reviewerId,
+    fechaLimite: asignacion.dueDate,
+    estado: revision.status === 'submitted' ? 'enviada' : 'borrador',
+    recomendacion: recomendacionPublica[revision.recommendation] ?? '',
+    comentarioAutor: revision.authorComment,
+    comentarioComite: revision.committeeComment,
+    criterios: criterios.map(nota => ({
+      id: nota.id ?? null,
+      revisionId: revision.id,
+      criterioId: nota.criterionId,
+      puntaje: nota.score,
+      comentario: nota.comment,
+      criterio: { id: nota.criterionId, nombre: nota.criterionName, peso: nota.criterionWeight },
+    })),
+  }
+}
+
+function notaPonderada(notas) {
+  const calificadas = notas.filter(nota => nota.score !== null)
+  const pesoTotal = calificadas.reduce((total, nota) => total + nota.criterionWeight, 0)
+  if (!pesoTotal) return null
+  const suma = calificadas.reduce((total, nota) => total + nota.score * nota.criterionWeight, 0)
+  return Math.round(suma * 10 / pesoTotal) / 10
+}
+
+export async function revisiones(req, res) {
+  const usuario = res.locals.usuario
+  const filas = await Revision.findAll({
     order: [['id', 'ASC']],
     include: [
-      'trabajo',
-      'revisor',
-      { model: db.revisionCriterio, as: 'criterios', include: ['criterio'] },
+      {
+        association: 'assignment',
+        include: datosAsignacion,
+        where: usuario.rol === 'committee' ? undefined : { reviewerId: usuario.id },
+      },
+      'scores',
     ],
   })
+  const ediciones = [...new Set(filas.filter(r => r.status === 'draft').map(r => r.assignment.work.editionId))]
+  const criterios = ediciones.length
+    ? await Criterio.findAll({ where: { editionId: ediciones }, order: [['id', 'ASC']] })
+    : []
   return res.json({
     status: 'success',
-    data: revisiones,
+    data: filas.map(revision => {
+      const { assignment: asignacion } = revision
+      return {
+        ...fichaRevision(revision, asignacion, revision.status === 'draft'
+          ? criterios.filter(criterio => criterio.editionId === asignacion.work.editionId)
+          : []),
+        trabajo: fichaTrabajo(asignacion.work),
+        revisor: participante(asignacion.reviewer),
+      }
+    }),
   })
 }
 
-// HU5 - Cada trabajo con su autor, sus revisiones y su decisión (un JOIN)
-export const trabajos_revisiones = async (req, res) => {
-  console.log('/trabajos-revisiones invocado !')
-  const trabajos = await db.trabajo.findAll({
-    order: [['codigo', 'ASC']],
-    include: ['autor', 'revisiones', 'decision'],
-  })
-
-  trabajos.forEach(t => {
-    console.log(t.get('codigo'), t.get('titulo'))
-    const revisiones = t.get('revisiones')
-    revisiones.forEach(r => {
-      console.log('  ', r.estado, ' - ', r.recomendacion)
-    })
-  })
-
-  return res.json({
-    status: 'success',
-    data: trabajos,
-  })
-}
-
-// HU5 - Parte comité: decisiones finales con su trabajo
-export const decisiones = async (req, res) => {
-  console.log('/decisiones invocado !')
-  const decisiones = await db.decision.findAll({
-    include: ['trabajo'],
+export async function trabajos_revisiones(req, res) {
+  const trabajos = await Trabajo.findAll({
+    order: [['code', 'ASC']],
+    include: [...datosTrabajo, 'decision', { association: 'assignments', include: [{ association: 'review', include: ['scores'] }] }],
   })
   return res.json({
     status: 'success',
-    data: decisiones,
+    data: trabajos.map(trabajo => ({
+      ...fichaTrabajo(trabajo),
+      autor: participante(trabajo.owner),
+      decision: fichaDecision(trabajo.decision),
+      revisiones: trabajo.assignments.filter(a => a.review).map(a => fichaRevision(a.review, a)),
+    })),
   })
 }
 
-// HU5 - Parte comité: consolidado de las revisiones de un trabajo
-export const consolidado = async (req, res) => {
+export async function decisiones(req, res) {
+  const usuario = res.locals.usuario
+  const filas = await Decision.findAll({
+    order: [['id', 'ASC']],
+    where: usuario.rol === 'committee' ? undefined : { status: 'published' },
+    include: [{
+      association: 'work',
+      where: usuario.rol === 'committee' ? undefined : { ownerId: usuario.id },
+      include: datosTrabajo,
+    }],
+  })
+  return res.json({
+    status: 'success',
+    data: filas.map(decision => ({ ...fichaDecision(decision), trabajo: fichaTrabajo(decision.work) })),
+  })
+}
+
+export async function consolidado(req, res) {
   const { trabajoId } = req.params
-  console.log(`/consolidado/${trabajoId} invocado !`)
-  const trabajo = await db.trabajo.findByPk(trabajoId, {
+  if (!idValido(trabajoId)) return error(res, 400, 'El ID del trabajo no es válido.')
+  const trabajo = await Trabajo.findByPk(trabajoId, {
     include: [
       'decision',
-      {
-        model: db.revision,
-        as: 'revisiones',
-        include: [
-          'revisor',
-          { model: db.revisionCriterio, as: 'criterios', include: ['criterio'] },
-        ],
-      },
+      { association: 'assignments', include: ['reviewer', { association: 'review', include: ['scores'] }] },
     ],
   })
-  if (!trabajo) {
-    return res.status(404).json({ status: 'error', mensaje: 'El trabajo no existe.' })
-  }
+  if (!trabajo) return error(res, 404, 'El trabajo no existe.')
 
-  // Solo cuentan las revisiones enviadas; las demás se muestran como pendientes
-  const filas = trabajo.revisiones.map(r => {
-    const enviada = r.estado === 'enviada'
+  const filas = trabajo.assignments.map(({ review: revision, reviewer: revisor }) => {
+    const enviada = revision?.status === 'submitted'
     return {
-      revisionId: r.id,
-      revisor: r.revisor?.nombre,
-      estado: r.estado,
-      recomendacion: enviada ? r.recomendacion : null,
-      notaPonderada: enviada ? notaPonderada(r.criterios) : null,
-      comentarioAutor: enviada ? r.comentarioAutor : '',
-      comentarioComite: enviada ? r.comentarioComite : '',
+      revisionId: revision?.id ?? null,
+      revisor: revisor.fullName,
+      estado: enviada ? 'enviada' : 'borrador',
+      recomendacion: enviada ? recomendacionPublica[revision.recommendation] : null,
+      notaPonderada: enviada ? notaPonderada(revision.scores) : null,
+      comentarioAutor: enviada ? revision.authorComment : '',
+      comentarioComite: enviada ? revision.committeeComment : '',
     }
   })
-  const notas = filas.map(f => f.notaPonderada).filter(n => n !== null)
-  const promedioGeneral = notas.length
-    ? Math.round((notas.reduce((a, b) => a + b, 0) * 10) / notas.length) / 10
-    : null
-
+  const notas = filas.map(fila => fila.notaPonderada).filter(nota => nota !== null)
   return res.json({
     status: 'success',
     data: {
-      trabajo: { id: trabajo.id, codigo: trabajo.codigo, titulo: trabajo.titulo },
+      trabajo: { id: trabajo.id, codigo: trabajo.code, titulo: trabajo.title },
       revisiones: filas,
       resumen: {
         total: filas.length,
-        enviadas: notas.length,
-        promedioGeneral,
-        recomiendanAceptar: filas.filter(f => f.recomendacion === 'aceptar').length,
+        enviadas: filas.filter(fila => fila.estado === 'enviada').length,
+        promedioGeneral: notas.length ? Math.round(notas.reduce((a, b) => a + b, 0) * 10 / notas.length) / 10 : null,
+        recomiendanAceptar: filas.filter(fila => fila.recomendacion === 'aceptar').length,
       },
-      decision: trabajo.decision,
+      decision: fichaDecision(trabajo.decision),
     },
   })
 }
 
-// ---------- Escritura (PUT) ----------
+function criterioValido(criterio) {
+  return criterio && Number.isInteger(criterio.criterioId) && criterio.criterioId > 0 &&
+    (criterio.puntaje == null || (Number.isInteger(criterio.puntaje) && criterio.puntaje >= 0 && criterio.puntaje <= 20)) &&
+    (criterio.comentario == null || typeof criterio.comentario === 'string')
+}
 
-// HU5 - Parte revisor: guardar borrador o enviar la evaluación con sus notas
-export const guardarRevision = async (req, res) => {
+export async function guardarRevision(req, res) {
   const { id } = req.params
+  if (!idValido(id)) return error(res, 400, 'El ID de la revisión no es válido.')
   const {
     estado = 'borrador',
     recomendacion = '',
@@ -135,85 +229,97 @@ export const guardarRevision = async (req, res) => {
     criterios = [],
   } = req.body ?? {}
 
-  const revision = await db.revision.findByPk(id)
-  if (!revision) {
-    return res.status(404).json({ status: 'error', mensaje: 'La revisión no existe.' })
+  if (!['borrador', 'enviada'].includes(estado) ||
+      (recomendacion !== '' && !recomendaciones.has(recomendacion)) ||
+      typeof comentarioAutor !== 'string' || typeof comentarioComite !== 'string' ||
+      !Array.isArray(criterios) || !criterios.every(criterioValido)) {
+    return error(res, 400, 'Los datos de la revisión no son válidos.')
   }
-  if (revision.estado === 'enviada') {
-    return res
-      .status(409)
-      .json({ status: 'error', mensaje: 'La evaluación ya fue enviada y no admite cambios.' })
-  }
-  if (!['borrador', 'enviada'].includes(estado) || !Array.isArray(criterios)) {
-    return res.status(400).json({ status: 'error', mensaje: 'Datos no válidos.' })
-  }
+  const ids = new Set(criterios.map(criterio => criterio.criterioId))
+  if (ids.size !== criterios.length) return error(res, 400, 'No repitas criterios en la evaluación.')
 
-  const puntajeValido = p => p === null || (Number.isInteger(p) && p >= 0 && p <= 20)
-  if (!criterios.every(c => puntajeValido(c.puntaje ?? null))) {
-    return res
-      .status(400)
-      .json({ status: 'error', mensaje: 'Los puntajes deben ser enteros de 0 a 20.' })
-  }
+  const enviada = estado === 'enviada'
+  const usuario = res.locals.usuario
+  const resultado = await sequelize.transaction(async transaction => {
+    const revision = await Revision.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE })
+    if (!revision) return { codigo: 404, mensaje: 'La revisión no existe.' }
+    const asignacion = await AsignacionRevision.findByPk(revision.assignmentId, { transaction, include: ['work'] })
+    if (asignacion.reviewerId !== usuario.id) return { codigo: 404, mensaje: 'La revisión no existe.' }
+    if (revision.status === 'submitted') return { codigo: 409, mensaje: 'La evaluación ya fue enviada y no admite cambios.' }
 
-  // Para enviar, todos los criterios deben tener nota y comentario
-  if (estado === 'enviada') {
-    const totalCriterios = await db.criterio.count()
-    const completa =
-      criterios.length === totalCriterios &&
-      criterios.every(c => Number.isInteger(c.puntaje) && c.comentario?.trim()) &&
-      RECOMENDACIONES.includes(recomendacion) &&
-      comentarioAutor.trim()
-    if (!completa) {
-      return res.status(400).json({
-        status: 'error',
-        mensaje:
-          'Para enviar, califique y comente todos los criterios, elija una recomendación y escriba el comentario al autor.',
-      })
+    const criteriosEdicion = await Criterio.findAll({
+      where: { editionId: asignacion.work.editionId },
+      transaction,
+      lock: transaction.LOCK.SHARE,
+    })
+    const catalogo = new Map(criteriosEdicion.map(criterio => [criterio.id, criterio]))
+    if (criterios.some(criterio => !catalogo.has(criterio.criterioId))) {
+      return { codigo: 400, mensaje: 'Usa los criterios de la edición del trabajo.' }
     }
-  }
+    if (enviada && (!catalogo.size || ids.size !== catalogo.size || !recomendacion ||
+        !comentarioAutor.trim() || criterios.some(criterio => criterio.puntaje == null || !criterio.comentario?.trim()))) {
+      return {
+        codigo: 400,
+        mensaje: 'Para enviar, califica y comenta todos los criterios, elige una recomendación y escribe el comentario al autor.',
+      }
+    }
 
-  // La revisión y sus notas se guardan juntas (transacción)
-  await db.sequelize.transaction(async transaction => {
-    await revision.update(
-      { estado, recomendacion, comentarioAutor, comentarioComite },
-      { transaction }
-    )
-    await db.revisionCriterio.destroy({ where: { revisionId: revision.id }, transaction })
-    await db.revisionCriterio.bulkCreate(
-      criterios.map(c => ({
-        revisionId: revision.id,
-        criterioId: c.criterioId,
-        puntaje: c.puntaje ?? null,
-        comentario: c.comentario ?? '',
-      })),
-      { transaction }
-    )
+    await revision.update({
+      status: enviada ? 'submitted' : 'draft',
+      recommendation: recomendaciones.get(recomendacion) ?? null,
+      authorComment: comentarioAutor,
+      committeeComment: comentarioComite,
+      submittedAt: enviada ? new Date() : null,
+    }, { transaction })
+    await RevisionCriterio.destroy({ where: { reviewId: revision.id }, transaction })
+    const notas = await RevisionCriterio.bulkCreate(criterios.map(criterio => {
+      const vigente = catalogo.get(criterio.criterioId)
+      return {
+        reviewId: revision.id,
+        criterionId: vigente.id,
+        criterionName: vigente.name,
+        criterionWeight: vigente.weight,
+        score: criterio.puntaje ?? null,
+        comment: criterio.comentario ?? '',
+      }
+    }), { transaction, validate: true })
+    revision.scores = notas
+    return { data: fichaRevision(revision, asignacion) }
   })
-
-  const actualizada = await db.revision.findByPk(id, {
-    include: [{ model: db.revisionCriterio, as: 'criterios', include: ['criterio'] }],
-  })
-  return res.json({ status: 'success', data: actualizada })
+  if (resultado.codigo) return error(res, resultado.codigo, resultado.mensaje)
+  return res.json({ status: 'success', data: resultado.data })
 }
 
-// HU5 - Parte comité: guardar o publicar la decisión final de un trabajo
-export const guardarDecision = async (req, res) => {
+export async function guardarDecision(req, res) {
   const { trabajoId } = req.params
+  if (!idValido(trabajoId)) return error(res, 400, 'El ID del trabajo no es válido.')
   const { resultado, retroalimentacion = '', estado = 'borrador' } = req.body ?? {}
-
-  const trabajo = await db.trabajo.findByPk(trabajoId, { include: ['decision'] })
-  if (!trabajo) {
-    return res.status(404).json({ status: 'error', mensaje: 'El trabajo no existe.' })
-  }
-  if (!RESULTADOS.includes(resultado) || !['borrador', 'publicada'].includes(estado)) {
-    return res.status(400).json({ status: 'error', mensaje: 'Datos no válidos.' })
-  }
-  if (trabajo.decision?.estado === 'publicada') {
-    return res.status(409).json({ status: 'error', mensaje: 'La decisión ya fue publicada.' })
+  if (!resultados.has(resultado) || !['borrador', 'publicada'].includes(estado) || typeof retroalimentacion !== 'string') {
+    return error(res, 400, 'Los datos del dictamen no son válidos.')
   }
 
-  const datos = { trabajoId: trabajo.id, resultado, retroalimentacion, estado }
-  const existente = trabajo.decision
-  const decision = existente ? await existente.update(datos) : await db.decision.create(datos)
-  return res.status(existente ? 200 : 201).json({ status: 'success', data: decision })
+  const publicada = estado === 'publicada'
+  const guardado = await sequelize.transaction(async transaction => {
+    const trabajo = await Trabajo.findByPk(trabajoId, { transaction, lock: transaction.LOCK.UPDATE })
+    if (!trabajo) return { codigo: 404, mensaje: 'El trabajo no existe.' }
+    const existente = await Decision.findOne({ where: { workId: trabajo.id }, transaction })
+    if (existente?.status === 'published') return { codigo: 409, mensaje: 'La decisión ya fue publicada.' }
+
+    const datos = {
+      workId: trabajo.id,
+      result: resultados.get(resultado),
+      feedback: retroalimentacion,
+      status: publicada ? 'published' : 'draft',
+      publishedAt: publicada ? new Date() : null,
+    }
+    const decision = existente
+      ? await existente.update(datos, { transaction })
+      : await Decision.create(datos, { transaction })
+    if (publicada) {
+      await trabajo.update({ status: resultado === 'aceptar' ? 'accepted' : 'rejected' }, { transaction })
+    }
+    return { codigo: existente ? 200 : 201, data: fichaDecision(decision) }
+  })
+  if (guardado.mensaje) return error(res, guardado.codigo, guardado.mensaje)
+  return res.status(guardado.codigo).json({ status: 'success', data: guardado.data })
 }

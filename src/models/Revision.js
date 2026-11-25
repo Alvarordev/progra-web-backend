@@ -2,8 +2,8 @@ import { DataTypes } from 'sequelize'
 import { sequelize } from '../db/sequelize.js'
 
 // Evaluación de una asignación. El borrador admite campos incompletos.
-export const Review = sequelize.define(
-  'Review',
+export const Revision = sequelize.define(
+  'Revision',
   {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
     status: { type: DataTypes.ENUM('draft', 'submitted'), allowNull: false, defaultValue: 'draft' },
@@ -13,7 +13,7 @@ export const Review = sequelize.define(
     submittedAt: { type: DataTypes.DATE },
   },
   {
-    tableName: 'reviews',
+    tableName: 'revisiones',
     indexes: [{ unique: true, fields: ['assignment_id'] }],
     validate: {
       submittedIsComplete() {

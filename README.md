@@ -12,6 +12,7 @@ cd progra-web-backend
 cp env.local .env
 npm ci
 docker compose up -d --wait
+npm run db:migrate
 npm run dev
 ```
 
@@ -49,39 +50,39 @@ src/
 └── db/                 # Conexión a PostgreSQL con Sequelize
 ```
 
-El proyecto usa módulos ECMAScript (ESM) con `"type": "module"` en `package.json`. Usa `import` y `export` en los archivos `.js` e incluye la extensión en los imports relativos. La conexión y los futuros modelos de Sequelize pueden usar ESM. Si se incorpora una herramienta que exige CommonJS para su configuración, se puede usar `.cjs` para ese archivo específico.
+El proyecto usa módulos ECMAScript (ESM) con `"type": "module"`. `src/models` contiene los modelos compartidos en español. La configuración de Sequelize CLI y las migraciones usan CommonJS.
+
+## Base de datos y datos de ejemplo
+
+`npm run db:migrate` crea el esquema compartido, incluidas las tablas `usuarios`, `trabajos`, `asignaciones_revision`, `revisiones`, `criterios`, `revision_criterios` y `decisiones`. Ejecuta este comando al preparar una base nueva y después de incorporar migraciones.
+
+Si aplicaste las migraciones preliminares de la rama del PR #1, conserva esa base y configura otra en `.env` para ejecutar la migración compartida. En Docker, un volumen de PostgreSQL ya inicializado conserva la base anterior aunque cambies `POSTGRES_DB`; crea la nueva base en PostgreSQL antes de ejecutar la migración.
+
+Para probar la HU5 con el conjunto de ejemplo del PR, configura `HU5_DEMO_PASSWORD` con una contraseña de al menos 12 caracteres en la base local de pruebas y ejecuta `npm run db:seed`. Todas las cuentas de ejemplo usan esa contraseña. El seeder se registra en la base para que repetir el comando no duplique los datos.
+
+| Rol de ejemplo | Correo |
+| --- | --- |
+| Revisor con una evaluación en borrador | `luis.ramirez@ulima.edu.pe` |
+| Comité | `ana.salazar@ulima.edu.pe` |
+| Autora | `rosa.quispe@aloe.ulima.edu.pe` |
+
+## API de revisión y dictamen
+
+La HU5 usa autenticación HTTP Basic con el correo y la contraseña de la cuenta. La API escucha en `127.0.0.1` en desarrollo. El prefijo de las rutas es `/api/hu5`.
+
+| Método | Ruta | Acceso y operación |
+| --- | --- | --- |
+| GET | `/revisiones` | El revisor consulta sus evaluaciones y el comité consulta todas. |
+| GET | `/trabajos-revisiones` | El comité consulta trabajos, revisiones y dictámenes. |
+| GET | `/decisiones` | El comité consulta todos los dictámenes. El autor consulta los publicados de sus trabajos. |
+| GET | `/consolidado/:trabajoId` | El comité consulta las notas ponderadas de las evaluaciones enviadas. |
+| PUT | `/revisiones/:id` | El revisor asignado guarda el borrador o envía su evaluación. |
+| PUT | `/decisiones/:trabajoId` | El comité guarda o publica el dictamen y fija el estado final del trabajo. |
+
+```bash
+curl --user luis.ramirez@ulima.edu.pe http://127.0.0.1:3000/api/hu5/revisiones
+```
 
 ## Integración con el frontend
 
-El frontend usa React y Vite. Los repositorios de `src/core/utils/repositories.js` exponen `get()`, `save()` y `remove()` asíncronos. Esos repositorios son el punto de integración para adoptar las rutas de la API a medida que se implementan. En esta etapa la API ofrece la ruta de diagnóstico y los datos del congreso siguen en el almacenamiento del navegador.
-
-## Base de datos con Sequelize CLI (HU5)
-
-Las tablas se crean con migraciones de `sequelize-cli`, como en los laboratorios del curso. Los archivos de Sequelize usan `.cjs` porque la herramienta trabaja con CommonJS. Con PostgreSQL en ejecución, ya sea el instalado en Windows (ajusta `DB_PORT`, `POSTGRES_USER` y `POSTGRES_PASSWORD` en `.env`) o el de `docker compose up -d --wait`:
-
-```bash
-npx sequelize-cli db:migrate --options-path .sequelizerc.cjs
-npx sequelize-cli db:seed:all --options-path .sequelizerc.cjs
-```
-
-Para volver a empezar: `db:seed:undo:all` y `db:migrate:undo:all` con la misma opción `--options-path`.
-
-| Tabla               | Relación                                                                  |
-| ------------------- | ------------------------------------------------------------------------- |
-| `usuarios`          | Un usuario (autor) tiene muchos trabajos y (revisor) muchas revisiones    |
-| `trabajos`          | Pertenece a un autor; tiene una o varias revisiones y una decisión        |
-| `revisions`         | Pertenece a un trabajo y a un revisor; tiene una nota por cada criterio   |
-| `criterios`         | Criterios de evaluación con su peso (suman 100)                           |
-| `revisionCriterios` | Nota (0 a 20) y comentario de una revisión en un criterio                 |
-| `decisions`         | Pertenece a un trabajo (dictamen final del comité)                        |
-
-Rutas de la HU5 (prefijo `/api/hu5`):
-
-| Método | Ruta                          | Uso                                                     |
-| ------ | ----------------------------- | ------------------------------------------------------- |
-| GET    | `/revisiones`                 | Revisiones con trabajo, revisor y notas por criterio    |
-| GET    | `/trabajos-revisiones`        | Trabajos con autor, revisiones y decisión               |
-| GET    | `/decisiones`                 | Decisiones del comité con su trabajo                    |
-| GET    | `/consolidado/:trabajoId`     | Notas ponderadas y promedio de las revisiones enviadas  |
-| PUT    | `/revisiones/:id`             | Guarda borrador o envía la evaluación con sus notas     |
-| PUT    | `/decisiones/:trabajoId`      | Guarda o publica la decisión final                      |
+El frontend usa React y Vite. Los repositorios asíncronos de `src/core/utils/repositories.js` son el punto de integración para adoptar las rutas de la API.

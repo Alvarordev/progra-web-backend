@@ -1,8 +1,8 @@
 import { DataTypes } from 'sequelize'
 import { sequelize } from '../db/sequelize.js'
 
-export const Work = sequelize.define(
-  'Work',
+export const Trabajo = sequelize.define(
+  'Trabajo',
   {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
     // Código visible, por ejemplo TRB-2026-042.
@@ -19,5 +19,5 @@ export const Work = sequelize.define(
     },
     submittedAt: { type: DataTypes.DATE },
   },
-  { tableName: 'works' }
+  { tableName: 'trabajos' }
 )

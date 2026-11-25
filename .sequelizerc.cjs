@@ -1,11 +1,8 @@
-// .sequelizerc.cjs
-// Le indica a sequelize-cli dónde están la configuración, modelos, migraciones y seeders.
-
-const path = require('path');
+const path = require('node:path');
 
 module.exports = {
-  'config': path.resolve('src/db/config', 'config.cjs'),
-  'models-path': path.resolve('src/db', 'models'),
-  'seeders-path': path.resolve('src/db', 'seeders'),
-  'migrations-path': path.resolve('src/db', 'migrations')
+  config: path.resolve('src/db/config/config.cjs'),
+  'models-path': path.resolve('src/models'),
+  'seeders-path': path.resolve('src/db/seeders'),
+  'migrations-path': path.resolve('src/db/migrations'),
 };

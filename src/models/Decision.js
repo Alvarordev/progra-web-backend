@@ -12,7 +12,7 @@ export const Decision = sequelize.define(
     publishedAt: { type: DataTypes.DATE },
   },
   {
-    tableName: 'decisions',
+    tableName: 'decisiones',
     indexes: [{ unique: true, fields: ['work_id'] }],
   }
 )

@@ -2,8 +2,8 @@ import { DataTypes } from 'sequelize'
 import { sequelize } from '../db/sequelize.js'
 
 // Recordatorio enviado al revisor de una asignación pendiente.
-export const ReviewReminder = sequelize.define(
-  'ReviewReminder',
+export const RecordatorioRevision = sequelize.define(
+  'RecordatorioRevision',
   { id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true } },
-  { tableName: 'review_reminders', updatedAt: false }
+  { tableName: 'recordatorios_revision', updatedAt: false }
 )

@@ -1,8 +1,8 @@
 import { DataTypes } from 'sequelize'
 import { sequelize } from '../db/sequelize.js'
 
-export const ThematicAxis = sequelize.define(
-  'ThematicAxis',
+export const EjeTematico = sequelize.define(
+  'EjeTematico',
   {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
     name: { type: DataTypes.STRING(150), allowNull: false, validate: { notEmpty: true } },
@@ -11,7 +11,7 @@ export const ThematicAxis = sequelize.define(
     coordinator: { type: DataTypes.STRING(150), allowNull: false, validate: { notEmpty: true } },
   },
   {
-    tableName: 'thematic_axes',
+    tableName: 'ejes_tematicos',
     indexes: [{ unique: true, fields: ['edition_id', 'name'] }],
   }
 )

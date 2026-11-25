@@ -2,8 +2,8 @@ import { DataTypes } from 'sequelize'
 import { sequelize } from '../db/sequelize.js'
 
 // Reúne la ficha del participante, las credenciales y los datos administrativos de Usuarios.
-export const User = sequelize.define(
-  'User',
+export const Usuario = sequelize.define(
+  'Usuario',
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     names: { type: DataTypes.STRING(120), allowNull: false, validate: { notEmpty: true } },
@@ -39,7 +39,7 @@ export const User = sequelize.define(
     },
   },
   {
-    tableName: 'users',
+    tableName: 'usuarios',
     defaultScope: { attributes: { exclude: ['passwordHash'] } },
     scopes: { withPassword: { attributes: { include: ['passwordHash'] } } },
   }

@@ -2,8 +2,8 @@ import { DataTypes } from 'sequelize'
 import { sequelize } from '../db/sequelize.js'
 
 // Sesión del programa: bloque de exposiciones en una sala y horario.
-export const ProgramSession = sequelize.define(
-  'ProgramSession',
+export const SesionPrograma = sequelize.define(
+  'SesionPrograma',
   {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
     name: { type: DataTypes.STRING(200), allowNull: false, validate: { notEmpty: true } },
@@ -12,7 +12,7 @@ export const ProgramSession = sequelize.define(
     endTime: { type: DataTypes.TIME, allowNull: false },
   },
   {
-    tableName: 'program_sessions',
+    tableName: 'sesiones_programa',
     validate: {
       timeOrder() {
         if (this.startTime >= this.endTime) {

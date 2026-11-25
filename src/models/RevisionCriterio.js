@@ -3,8 +3,8 @@ import { sequelize } from '../db/sequelize.js'
 
 // Puntaje por criterio. Guarda nombre y peso usados al evaluar para conservarlos
 // aunque el criterio cambie o se elimine después del envío.
-export const ReviewScore = sequelize.define(
-  'ReviewScore',
+export const RevisionCriterio = sequelize.define(
+  'RevisionCriterio',
   {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
     criterionName: { type: DataTypes.STRING(120), allowNull: false },
@@ -13,7 +13,7 @@ export const ReviewScore = sequelize.define(
     comment: { type: DataTypes.TEXT, allowNull: false, defaultValue: '' },
   },
   {
-    tableName: 'review_scores',
+    tableName: 'revision_criterios',
     indexes: [{ unique: true, fields: ['review_id', 'criterion_id'] }],
   }
 )

@@ -2,8 +2,8 @@ import { DataTypes } from 'sequelize'
 import { sequelize } from '../db/sequelize.js'
 
 // La suma de pesos puede quedar incompleta; abrir la revisión exige 100.
-export const Criterion = sequelize.define(
-  'Criterion',
+export const Criterio = sequelize.define(
+  'Criterio',
   {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
     name: { type: DataTypes.STRING(120), allowNull: false, validate: { notEmpty: true } },
@@ -11,7 +11,7 @@ export const Criterion = sequelize.define(
     weight: { type: DataTypes.SMALLINT, allowNull: false, validate: { min: 1, max: 100 } },
   },
   {
-    tableName: 'criteria',
+    tableName: 'criterios',
     indexes: [{ unique: true, fields: ['edition_id', 'name'] }],
   }
 )

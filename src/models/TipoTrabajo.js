@@ -1,8 +1,8 @@
 import { DataTypes } from 'sequelize'
 import { sequelize } from '../db/sequelize.js'
 
-export const WorkType = sequelize.define(
-  'WorkType',
+export const TipoTrabajo = sequelize.define(
+  'TipoTrabajo',
   {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
     name: { type: DataTypes.STRING(120), allowNull: false, validate: { notEmpty: true } },
@@ -17,11 +17,11 @@ export const WorkType = sequelize.define(
     maxCoauthors: { type: DataTypes.SMALLINT, validate: { min: 1 } },
   },
   {
-    tableName: 'work_types',
+    tableName: 'tipos_trabajo',
     indexes: [{ unique: true, fields: ['edition_id', 'name'] }],
     validate: {
       coauthorLimit() {
-        if (this.allowsCoauthors ? !this.maxCoauthors : this.maxCoauthors !== null) {
+        if (this.allowsCoauthors ? !this.maxCoauthors : this.maxCoauthors != null) {
           throw new Error('El máximo de coautores solo aplica cuando se admiten coautores.')
         }
       },

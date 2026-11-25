@@ -1,110 +1,110 @@
 import { sequelize } from '../db/sequelize.js'
-import { Criterion } from './Criterion.js'
+import { Criterio } from './Criterio.js'
 import { Decision } from './Decision.js'
-import { Edition } from './Edition.js'
-import { ProgramSession } from './ProgramSession.js'
-import { Review } from './Review.js'
-import { ReviewAssignment } from './ReviewAssignment.js'
-import { ReviewReminder } from './ReviewReminder.js'
-import { ReviewScore } from './ReviewScore.js'
-import { Room } from './Room.js'
-import { SessionWork } from './SessionWork.js'
-import { ThematicAxis } from './ThematicAxis.js'
-import { User } from './User.js'
-import { Work } from './Work.js'
-import { WorkAuthor } from './WorkAuthor.js'
-import { WorkType } from './WorkType.js'
+import { Edicion } from './Edicion.js'
+import { SesionPrograma } from './SesionPrograma.js'
+import { Revision } from './Revision.js'
+import { AsignacionRevision } from './AsignacionRevision.js'
+import { RecordatorioRevision } from './RecordatorioRevision.js'
+import { RevisionCriterio } from './RevisionCriterio.js'
+import { Sala } from './Sala.js'
+import { TrabajoSesion } from './TrabajoSesion.js'
+import { EjeTematico } from './EjeTematico.js'
+import { Usuario } from './Usuario.js'
+import { Trabajo } from './Trabajo.js'
+import { AutorTrabajo } from './AutorTrabajo.js'
+import { TipoTrabajo } from './TipoTrabajo.js'
 
 const required = name => ({ foreignKey: { name, allowNull: false } })
 
 // Configuración de cada edición
-for (const model of [ThematicAxis, WorkType, Criterion, Work, ProgramSession]) {
-  Edition.hasMany(model, { ...required('editionId'), onDelete: 'CASCADE' })
-  model.belongsTo(Edition, required('editionId'))
+for (const model of [EjeTematico, TipoTrabajo, Criterio, Trabajo, SesionPrograma]) {
+  Edicion.hasMany(model, { ...required('editionId'), onDelete: 'CASCADE' })
+  model.belongsTo(Edicion, { as: 'edition', ...required('editionId') })
 }
 
 // Líneas de interés de los revisores
-User.belongsToMany(ThematicAxis, {
-  through: 'reviewer_interests',
+Usuario.belongsToMany(EjeTematico, {
+  through: 'intereses_revisor',
   as: 'interests',
   foreignKey: 'userId',
   otherKey: 'thematicAxisId',
 })
-ThematicAxis.belongsToMany(User, {
-  through: 'reviewer_interests',
+EjeTematico.belongsToMany(Usuario, {
+  through: 'intereses_revisor',
   as: 'interestedReviewers',
   foreignKey: 'thematicAxisId',
   otherKey: 'userId',
 })
 
 // Trabajos y firmantes
-User.hasMany(Work, { as: 'ownedWorks', ...required('ownerId') })
-Work.belongsTo(User, { as: 'owner', ...required('ownerId') })
-ThematicAxis.hasMany(Work, required('thematicAxisId'))
-Work.belongsTo(ThematicAxis, required('thematicAxisId'))
-WorkType.hasMany(Work, required('workTypeId'))
-Work.belongsTo(WorkType, required('workTypeId'))
+Usuario.hasMany(Trabajo, { as: 'ownedWorks', ...required('ownerId') })
+Trabajo.belongsTo(Usuario, { as: 'owner', ...required('ownerId') })
+EjeTematico.hasMany(Trabajo, required('thematicAxisId'))
+Trabajo.belongsTo(EjeTematico, { as: 'thematicAxis', ...required('thematicAxisId') })
+TipoTrabajo.hasMany(Trabajo, required('workTypeId'))
+Trabajo.belongsTo(TipoTrabajo, { as: 'workType', ...required('workTypeId') })
 
-Work.hasMany(WorkAuthor, { as: 'authors', ...required('workId'), onDelete: 'CASCADE' })
-WorkAuthor.belongsTo(Work, required('workId'))
-User.hasMany(WorkAuthor, { as: 'authorships', foreignKey: 'userId', onDelete: 'SET NULL' })
-WorkAuthor.belongsTo(User, { foreignKey: 'userId' })
+Trabajo.hasMany(AutorTrabajo, { as: 'authors', ...required('workId'), onDelete: 'CASCADE' })
+AutorTrabajo.belongsTo(Trabajo, required('workId'))
+Usuario.hasMany(AutorTrabajo, { as: 'authorships', foreignKey: 'userId', onDelete: 'SET NULL' })
+AutorTrabajo.belongsTo(Usuario, { foreignKey: 'userId' })
 
 // Asignaciones, evaluaciones y recordatorios
-Work.hasMany(ReviewAssignment, { as: 'assignments', ...required('workId'), onDelete: 'CASCADE' })
-ReviewAssignment.belongsTo(Work, required('workId'))
-User.hasMany(ReviewAssignment, { as: 'reviewAssignments', ...required('reviewerId') })
-ReviewAssignment.belongsTo(User, { as: 'reviewer', ...required('reviewerId') })
+Trabajo.hasMany(AsignacionRevision, { as: 'assignments', ...required('workId'), onDelete: 'CASCADE' })
+AsignacionRevision.belongsTo(Trabajo, { as: 'work', ...required('workId') })
+Usuario.hasMany(AsignacionRevision, { as: 'reviewAssignments', ...required('reviewerId') })
+AsignacionRevision.belongsTo(Usuario, { as: 'reviewer', ...required('reviewerId') })
 
-ReviewAssignment.hasOne(Review, { ...required('assignmentId'), onDelete: 'CASCADE' })
-Review.belongsTo(ReviewAssignment, { as: 'assignment', ...required('assignmentId') })
+AsignacionRevision.hasOne(Revision, { as: 'review', ...required('assignmentId'), onDelete: 'CASCADE' })
+Revision.belongsTo(AsignacionRevision, { as: 'assignment', ...required('assignmentId') })
 
-Review.hasMany(ReviewScore, { as: 'scores', ...required('reviewId'), onDelete: 'CASCADE' })
-ReviewScore.belongsTo(Review, required('reviewId'))
-Criterion.hasMany(ReviewScore, { foreignKey: 'criterionId', onDelete: 'SET NULL' })
-ReviewScore.belongsTo(Criterion, { foreignKey: 'criterionId' })
+Revision.hasMany(RevisionCriterio, { as: 'scores', ...required('reviewId'), onDelete: 'CASCADE' })
+RevisionCriterio.belongsTo(Revision, required('reviewId'))
+Criterio.hasMany(RevisionCriterio, { foreignKey: 'criterionId', onDelete: 'SET NULL' })
+RevisionCriterio.belongsTo(Criterio, { as: 'criterion', foreignKey: 'criterionId' })
 
-ReviewAssignment.hasMany(ReviewReminder, {
+AsignacionRevision.hasMany(RecordatorioRevision, {
   as: 'reminders',
   ...required('assignmentId'),
   onDelete: 'CASCADE',
 })
-ReviewReminder.belongsTo(ReviewAssignment, { as: 'assignment', ...required('assignmentId') })
-User.hasMany(ReviewReminder, { as: 'sentReminders', foreignKey: 'sentById', onDelete: 'SET NULL' })
-ReviewReminder.belongsTo(User, { as: 'sentBy', foreignKey: 'sentById' })
+RecordatorioRevision.belongsTo(AsignacionRevision, { as: 'assignment', ...required('assignmentId') })
+Usuario.hasMany(RecordatorioRevision, { as: 'sentReminders', foreignKey: 'sentById', onDelete: 'SET NULL' })
+RecordatorioRevision.belongsTo(Usuario, { as: 'sentBy', foreignKey: 'sentById' })
 
 // Dictamen del comité
-Work.hasOne(Decision, { ...required('workId'), onDelete: 'CASCADE' })
-Decision.belongsTo(Work, required('workId'))
+Trabajo.hasOne(Decision, { as: 'decision', ...required('workId'), onDelete: 'CASCADE' })
+Decision.belongsTo(Trabajo, { as: 'work', ...required('workId') })
 
 // Programa
-Room.hasMany(ProgramSession, required('roomId'))
-ProgramSession.belongsTo(Room, required('roomId'))
-ThematicAxis.hasMany(ProgramSession, required('thematicAxisId'))
-ProgramSession.belongsTo(ThematicAxis, required('thematicAxisId'))
-User.hasMany(ProgramSession, { as: 'moderatedSessions', foreignKey: 'moderatorId', onDelete: 'SET NULL' })
-ProgramSession.belongsTo(User, { as: 'moderator', foreignKey: 'moderatorId' })
+Sala.hasMany(SesionPrograma, required('roomId'))
+SesionPrograma.belongsTo(Sala, required('roomId'))
+EjeTematico.hasMany(SesionPrograma, required('thematicAxisId'))
+SesionPrograma.belongsTo(EjeTematico, required('thematicAxisId'))
+Usuario.hasMany(SesionPrograma, { as: 'moderatedSessions', foreignKey: 'moderatorId', onDelete: 'SET NULL' })
+SesionPrograma.belongsTo(Usuario, { as: 'moderator', foreignKey: 'moderatorId' })
 
-ProgramSession.hasMany(SessionWork, { as: 'works', ...required('sessionId'), onDelete: 'CASCADE' })
-SessionWork.belongsTo(ProgramSession, { as: 'session', ...required('sessionId') })
-Work.hasOne(SessionWork, { as: 'programSlot', ...required('workId'), onDelete: 'CASCADE' })
-SessionWork.belongsTo(Work, required('workId'))
+SesionPrograma.hasMany(TrabajoSesion, { as: 'works', ...required('sessionId'), onDelete: 'CASCADE' })
+TrabajoSesion.belongsTo(SesionPrograma, { as: 'session', ...required('sessionId') })
+Trabajo.hasOne(TrabajoSesion, { as: 'programSlot', ...required('workId'), onDelete: 'CASCADE' })
+TrabajoSesion.belongsTo(Trabajo, required('workId'))
 
 export {
   sequelize,
-  Criterion,
+  Criterio,
   Decision,
-  Edition,
-  ProgramSession,
-  Review,
-  ReviewAssignment,
-  ReviewReminder,
-  ReviewScore,
-  Room,
-  SessionWork,
-  ThematicAxis,
-  User,
-  Work,
-  WorkAuthor,
-  WorkType,
+  Edicion,
+  SesionPrograma,
+  Revision,
+  AsignacionRevision,
+  RecordatorioRevision,
+  RevisionCriterio,
+  Sala,
+  TrabajoSesion,
+  EjeTematico,
+  Usuario,
+  Trabajo,
+  AutorTrabajo,
+  TipoTrabajo,
 }

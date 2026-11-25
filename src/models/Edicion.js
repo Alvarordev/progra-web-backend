@@ -2,8 +2,8 @@ import { DataTypes } from 'sequelize'
 import { sequelize } from '../db/sequelize.js'
 
 // Datos generales, estado y cronograma de una edición del congreso.
-export const Edition = sequelize.define(
-  'Edition',
+export const Edicion = sequelize.define(
+  'Edicion',
   {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
     name: { type: DataTypes.STRING(200), allowNull: false, validate: { notEmpty: true } },
@@ -24,7 +24,7 @@ export const Edition = sequelize.define(
     programSnapshot: { type: DataTypes.JSONB },
   },
   {
-    tableName: 'editions',
+    tableName: 'ediciones',
     validate: {
       scheduleOrder() {
         if (this.reviewDeadline <= this.receptionDeadline) {
