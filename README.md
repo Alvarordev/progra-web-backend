@@ -70,6 +70,18 @@ Para cargar los datos de ejemplo de registro, asignación y evaluación, define 
 | Comité | `ana.salazar@ulima.edu.pe` |
 | Autora | `rosa.quispe@aloe.ulima.edu.pe` |
 
+## API de configuración de ediciones
+
+| Método | Ruta | Operación |
+| --- | --- | --- |
+| GET | `/api/ediciones` | Lista las ediciones en orden de año descendente. |
+| GET, PATCH | `/api/ediciones/:edicionId` | Consulta o modifica datos generales, cronograma o estado. |
+| GET, POST | `/api/ediciones/:edicionId/{ejes_tematicos,tipos_trabajo,criterios}` | Lista o crea elementos del catálogo seleccionado. |
+| PUT, DELETE | `/api/ediciones/:edicionId/{ejes_tematicos,tipos_trabajo,criterios}/:id` | Actualiza o elimina un elemento. |
+| POST, GET, DELETE | `/api/usuarios/sesiones` | Inicia, consulta o cierra la sesión web del comité. |
+
+Las lecturas de edición y catálogos son públicas. Para modificar la configuración, usa una cuenta de comité con HTTP Basic o la cookie de sesión emitida al iniciar sesión. La sesión de desarrollo caduca al reiniciar el backend. Envía las fechas en ISO 8601 con zona horaria, por ejemplo `2027-09-30T23:59:00-05:00`. Los registros de catálogo en uso devuelven `409` al intentar eliminarlos.
+
 ## API de registro de trabajos
 
 | Método | Ruta | Acceso y operación |

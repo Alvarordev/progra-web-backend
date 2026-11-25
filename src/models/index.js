@@ -41,10 +41,10 @@ EjeTematico.belongsToMany(Usuario, {
 // Trabajos y firmantes
 Usuario.hasMany(Trabajo, { as: 'ownedWorks', ...required('ownerId') })
 Trabajo.belongsTo(Usuario, { as: 'owner', ...required('ownerId') })
-EjeTematico.hasMany(Trabajo, required('thematicAxisId'))
-Trabajo.belongsTo(EjeTematico, { as: 'thematicAxis', ...required('thematicAxisId') })
-TipoTrabajo.hasMany(Trabajo, required('workTypeId'))
-Trabajo.belongsTo(TipoTrabajo, { as: 'workType', ...required('workTypeId') })
+EjeTematico.hasMany(Trabajo, { ...required('thematicAxisId'), onDelete: 'RESTRICT' })
+Trabajo.belongsTo(EjeTematico, { as: 'thematicAxis', ...required('thematicAxisId'), onDelete: 'RESTRICT' })
+TipoTrabajo.hasMany(Trabajo, { ...required('workTypeId'), onDelete: 'RESTRICT' })
+Trabajo.belongsTo(TipoTrabajo, { as: 'workType', ...required('workTypeId'), onDelete: 'RESTRICT' })
 
 Trabajo.hasMany(AutorTrabajo, { as: 'authors', ...required('workId'), onDelete: 'CASCADE' })
 AutorTrabajo.belongsTo(Trabajo, required('workId'))
@@ -106,8 +106,8 @@ Decision.belongsTo(Trabajo, { as: 'work', ...required('workId') })
 // Programa
 Sala.hasMany(SesionPrograma, required('roomId'))
 SesionPrograma.belongsTo(Sala, required('roomId'))
-EjeTematico.hasMany(SesionPrograma, required('thematicAxisId'))
-SesionPrograma.belongsTo(EjeTematico, required('thematicAxisId'))
+EjeTematico.hasMany(SesionPrograma, { ...required('thematicAxisId'), onDelete: 'RESTRICT' })
+SesionPrograma.belongsTo(EjeTematico, { ...required('thematicAxisId'), onDelete: 'RESTRICT' })
 Usuario.hasMany(SesionPrograma, { as: 'moderatedSessions', foreignKey: 'moderatorId', onDelete: 'SET NULL' })
 SesionPrograma.belongsTo(Usuario, { as: 'moderator', foreignKey: 'moderatorId' })
 

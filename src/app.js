@@ -3,6 +3,7 @@ import { healthRouter } from './routes/health.js'
 import revisionesRouter from './routes/revisiones.js'
 import asignacionesRouter from './routes/asignaciones.js'
 import trabajosRouter from './routes/trabajos.js'
+import edicionesRouter from './routes/ediciones.js'
 
 export const app = express()
 
@@ -13,6 +14,7 @@ app.use('/api/health', healthRouter)
 app.use('/api', revisionesRouter)
 app.use('/api', asignacionesRouter)
 app.use('/api', trabajosRouter)
+app.use('/api', edicionesRouter)
 
 app.use((error, _req, res, _next) => {
   if (error instanceof SyntaxError && 'body' in error) {
