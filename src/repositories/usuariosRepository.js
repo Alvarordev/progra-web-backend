@@ -23,7 +23,7 @@ export const listarEjesActuales = async () => {
 export const listarAsignaciones = (usuarioId) => AsignacionRevision.findAll({
     where: { reviewerId: usuarioId },
     include: [
-        { association: 'review', attributes: ['status', 'updatedAt', 'recommendation'] },
+        { association: 'review', attributes: ['status', 'updatedAt', 'submittedAt', 'recommendation'] },
         { association: 'work', include: ['thematicAxis', 'workType'] },
     ],
     order: [['dueDate', 'ASC'], ['id', 'ASC']],
