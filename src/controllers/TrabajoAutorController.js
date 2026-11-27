@@ -1,9 +1,6 @@
 import { AutorTrabajo, Edicion, EjeTematico, TipoTrabajo, Trabajo, Usuario } from '../models/index.js'
 
-// HU3 · Nuevo trabajo
-// El autor registra un trabajo y lo guarda como borrador o lo envía al comitE
 
-// COmo se muestra cada estado de la base de datos
 const estados = {
   draft: 'Borrador',
   submitted: 'Enviado',
@@ -28,7 +25,7 @@ function recepcionAbierta(edicion) {
 }
 
 // Revisa los datos que llegan del formulario. Devuelve el mensaje del primer error o null
-// Un borrador solo necesita título, tipo y eje. Para enviarlo al comité se pide todo
+//  Condiciones: Un borrador solo necesita título, tipo y eje. Para enviarlo al comité se pide todo
 function validarTrabajo(datos) {
   if (!['borrador', 'enviado'].includes(datos.estado)) return 'El estado debe ser «borrador» o «enviado».'
   if (typeof datos.titulo !== 'string' || !datos.titulo.trim()) return 'Ingrese el título del trabajo.'
@@ -44,6 +41,62 @@ function validarTrabajo(datos) {
     if (!datos.enlace || !datos.enlace.startsWith('https://')) return 'Ingrese una URL completa que empiece con https://'
   }
   return null
+}
+
+// HU3 paso 3.2 · Revisa la lista de coautores. Devuelve el mensaje del primer error o null
+function validarCoautores(coautores, correoAutor, maxCoautores) {
+  if (!Array.isArray(coautores)) return 'Los coautores deben enviarse como una lista.'
+  if (coautores.length > maxCoautores) return `Este tipo de trabajo admite hasta ${maxCoautores} coautores.`
+
+  // Empieza con el correo del autor para que no se agregue a sí mismo como coautor
+  const correos = [correoAutor]
+  for (const coautor of coautores) {
+    const completo = coautor && [coautor.nombre, coautor.correo, coautor.institucion]
+      .every(campo => typeof campo === 'string' && campo.trim())
+    if (!completo) return 'Cada coautor necesita nombre, correo e institución.'
+
+    const correo = coautor.correo.trim().toLowerCase()
+    if (!correo.includes('@')) return `El correo ${correo} no es válido.`
+    if (correos.includes(correo)) return `El correo ${correo} ya figura entre los autores del trabajo.`
+    correos.push(correo)
+  }
+  return null
+}
+
+// HU3 mockup 3.2 · Guarda la lista de autores del trabajo: primero quien lo registra y luego los coautores
+// Antes borra la lista anterior, así sirve tanto para crear como para editar
+async function guardarAutores(trabajo, autor, coautores, correoCorrespondencia) {
+  await AutorTrabajo.destroy({ where: { workId: trabajo.id } })
+
+  // Si no se elige un autor de correspondencia válido, lo es quien registra el trabajo
+  const correos = coautores.map(coautor => coautor.correo.trim().toLowerCase())
+  const elegido = String(correoCorrespondencia ?? '').trim().toLowerCase()
+  const correspondencia = correos.includes(elegido) ? elegido : autor.email
+
+  await AutorTrabajo.create({
+    workId: trabajo.id,
+    userId: autor.id,
+    name: autor.fullName,
+    email: autor.email,
+    institution: autor.institution,
+    position: 1,
+    isCorresponding: correspondencia === autor.email,
+  })
+
+  for (const [indice, coautor] of coautores.entries()) {
+    const correo = coautor.correo.trim().toLowerCase()
+    // Si el coautor tiene cuenta en la aplicación, se enlaza con ella
+    const cuenta = await Usuario.findOne({ where: { email: correo } })
+    await AutorTrabajo.create({
+      workId: trabajo.id,
+      userId: cuenta ? cuenta.id : null,
+      name: coautor.nombre.trim(),
+      email: correo,
+      institution: coautor.institucion.trim(),
+      position: indice + 2,
+      isCorresponding: correspondencia === correo,
+    })
+  }
 }
 
 // Convierte un trabajo de la base de datos al formato que usa el frontend
@@ -95,9 +148,9 @@ export async function opciones(req, res) {
 }
 
 // POST /api/trabajos
-// Crea un trabajo nuevo como borrador o enviado
+// Crea un trabajo nuevo, con sus coautores, como borrador o enviado
 export async function crearTrabajo(req, res) {
-  const datos = { estado: 'borrador', ...req.body }
+  const datos = { estado: 'borrador', coautores: [], ...req.body }
   const error = validarTrabajo(datos)
   if (error) return enviarError(res, 400, error)
 
@@ -109,12 +162,16 @@ export async function crearTrabajo(req, res) {
   const eje = await EjeTematico.findOne({ where: { id: datos.ejeId, editionId: edicion.id } })
   if (!tipo || !eje) return enviarError(res, 400, 'El tipo o el eje no pertenecen a la edición abierta.')
 
-  // El mismo autor no puede registrar dos trabajos con el mismo título
+  // Los coautores no pueden pasar el máximo del tipo de trabajo
   const autor = await Usuario.findByPk(res.locals.usuario.id)
+  const errorCoautores = validarCoautores(datos.coautores, autor.email, tipo.maxCoauthors ?? 0)
+  if (errorCoautores) return enviarError(res, 400, errorCoautores)
+
+  // El mismo autor no puede registrar dos trabajos con el mismo título
   const repetido = await Trabajo.findOne({ where: { ownerId: autor.id, editionId: edicion.id, title: datos.titulo.trim() } })
   if (repetido) return enviarError(res, 409, 'Ya registró un trabajo con este título.')
 
-  // Código visible: TRB-año-número, por ejemplo TRB-2027-001
+  // Codigo visible: TRB-año-número, por ejemplo TRB-2027-001
   const cantidad = await Trabajo.count({ where: { editionId: edicion.id } })
   const codigo = `TRB-${edicion.year}-${String(cantidad + 1).padStart(3, '0')}`
 
@@ -132,17 +189,54 @@ export async function crearTrabajo(req, res) {
     thematicAxisId: eje.id,
   })
 
-  // Quien registra el trabajo es el primer autor y el autor de correspondencia
-  await AutorTrabajo.create({
-    workId: trabajo.id,
-    userId: autor.id,
-    name: autor.fullName,
-    email: autor.email,
-    institution: autor.institution,
-    position: 1,
-    isCorresponding: true,
-  })
+  // Primeor va el que registra el trabajo, luego sus coautores
+  await guardarAutores(trabajo, autor, datos.coautores, datos.correspondencia)
 
   const creado = await buscarTrabajo(trabajo.id)
   return res.status(201).json({ status: 'success', data: formatearTrabajo(creado) })
+}
+
+// HU3 3.2 · PUT /api/trabajos/:trabajoId
+// Edita un borrador (por ejemplo, para agregar coautores) o lo enva al comité
+// Si un trabajo ya fue enviado, no puede ser editado
+export async function actualizarTrabajo(req, res) {
+  const datos = { estado: 'borrador', coautores: [], ...req.body }
+  const error = validarTrabajo(datos)
+  if (error) return enviarError(res, 400, error)
+
+  // El id de la URL tiene que ser un numero entero, --> ejemplo /api/trabajos/3
+  const { trabajoId } = req.params
+  if (!Number.isInteger(Number(trabajoId))) return enviarError(res, 400, 'El id del trabajo no es válido.')
+
+  // Solo el autor que registró el trabajo puede editarlo
+  const autor = await Usuario.findByPk(res.locals.usuario.id)
+  const trabajo = await Trabajo.findByPk(trabajoId)
+  if (!trabajo || trabajo.ownerId !== autor.id) return enviarError(res, 404, 'El trabajo no existe.')
+  if (trabajo.status !== 'draft') return enviarError(res, 409, 'El trabajo ya fue enviado y no admite cambios.')
+
+  const edicion = await Edicion.findByPk(trabajo.editionId)
+  if (!recepcionAbierta(edicion)) return enviarError(res, 409, 'La recepción de trabajos está cerrada.')
+
+  // El tipo y el eje tienen que ser de la misma edicion del trabajo
+  const tipo = await TipoTrabajo.findOne({ where: { id: datos.tipoId, editionId: edicion.id } })
+  const eje = await EjeTematico.findOne({ where: { id: datos.ejeId, editionId: edicion.id } })
+  if (!tipo || !eje) return enviarError(res, 400, 'El tipo o el eje no pertenecen a la edición abierta.')
+
+  const errorCoautores = validarCoautores(datos.coautores, autor.email, tipo.maxCoauthors ?? 0)
+  if (errorCoautores) return enviarError(res, 400, errorCoautores)
+
+  await trabajo.update({
+    title: datos.titulo.trim(),
+    abstract: datos.resumen ?? '',
+    keywords: datos.palabrasClave ?? [],
+    documentUrl: datos.enlace || null,
+    status: datos.estado === 'enviado' ? 'submitted' : 'draft',
+    submittedAt: datos.estado === 'enviado' ? new Date() : null,
+    workTypeId: tipo.id,
+    thematicAxisId: eje.id,
+  })
+  await guardarAutores(trabajo, autor, datos.coautores, datos.correspondencia)
+
+  const actualizado = await buscarTrabajo(trabajo.id)
+  return res.json({ status: 'success', data: formatearTrabajo(actualizado) })
 }
