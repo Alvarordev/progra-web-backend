@@ -6,6 +6,8 @@ import asignacionesRouter from './routes/asignaciones.js'
 import trabajosRouter from './routes/trabajos.js'
 import edicionesRouter from './routes/ediciones.js'
 import usuariosRouter from './routes/usuarios.js'
+import gestionUsuariosRouter from './routes/gestionUsuarios.js'
+import metricasRouter from './routes/metricas.js'
 import { sesion } from './middleware/sesion.js'
 import { ErrorUsuario } from './services/validacionesUsuario.js'
 
@@ -23,6 +25,8 @@ app.use('/api', revisionesRouter)
 app.use('/api', asignacionesRouter)
 app.use('/api', trabajosRouter)
 app.use('/api', edicionesRouter)
+app.use('/api', gestionUsuariosRouter)
+app.use('/api', metricasRouter)
 
 app.use((error, _req, res, _next) => {
   if (error instanceof ErrorUsuario) {
