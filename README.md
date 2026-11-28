@@ -159,12 +159,12 @@ Las lecturas de edición y catálogos son públicas. Para modificar la configura
 | --- | --- | --- |
 | GET | `/api/trabajos/ediciones` | El autor consulta la edición, los ejes y los tipos para registrar un trabajo. |
 | POST | `/api/trabajos` | El autor registra un borrador o envía un trabajo, con sus coautores. |
-| GET | `/api/trabajos/mios` | El autor lista sus trabajos, del más reciente al más antiguo. |
-| GET | `/api/trabajos/:trabajoId` | El autor consulta uno de sus trabajos; `editable` indica si sigue en borrador. |
+| GET | `/api/trabajos/mios` | Lista los trabajos que la persona registró y aquellos donde figura como coautora (por cuenta o por correo), del más reciente al más antiguo. Cada trabajo indica si es `titular`. |
+| GET | `/api/trabajos/:trabajoId` | Consulta un trabajo propio o coautorado; `editable` es verdadero solo para el borrador de su titular. |
 | PUT | `/api/trabajos/:trabajoId` | El autor edita un borrador o lo envía. Un trabajo enviado responde `409`. |
 | PUT | `/api/trabajos/:trabajoId/version_final` | El autor de un trabajo aceptado guarda el enlace `https://` de su versión final (`enlace`). Otro estado responde `409`. |
 
-Los coautores se envían en `coautores` como `{ nombre, correo, institucion }`. Su correo debe ser institucional (`@ulima.edu.pe` o `@aloe.ulima.edu.pe`), no puede repetirse ni coincidir con el del autor, y su cantidad no puede superar `maxCoautores` del tipo. `correspondencia` indica el correo del autor de correspondencia (por defecto, quien registra). Los trabajos devuelven `actualizadoEn` y `enlaceFinal`. El título no puede repetirse entre los trabajos del mismo autor y edición, sin distinguir mayúsculas ni espacios en los extremos. Crear o editar un trabajo y sus autores ocurre en una sola transacción: si algo falla no se guarda nada.
+Los coautores se envían en `coautores` como `{ nombre, correo, institucion }`. Su correo debe ser institucional (`@ulima.edu.pe` o `@aloe.ulima.edu.pe`), no puede repetirse ni coincidir con el del autor, y su cantidad no puede superar `maxCoautores` del tipo. `correspondencia` indica el correo del autor de correspondencia (por defecto, quien registra). Los coautores consultan el trabajo, su dictamen y su presentación una vez enviado; el borrador, la edición y la versión final son solo de quien lo registró. Los trabajos devuelven `actualizadoEn` y `enlaceFinal`. El título no puede repetirse entre los trabajos del mismo autor y edición, sin distinguir mayúsculas ni espacios en los extremos. Crear o editar un trabajo y sus autores ocurre en una sola transacción: si algo falla no se guarda nada.
 
 ## API de gestión de usuarios y métricas (HU7)
 

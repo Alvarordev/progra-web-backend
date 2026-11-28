@@ -149,7 +149,7 @@ export const cambiarContrasena = async (usuarioId, datos, sesionId) => {
 };
 
 export const comprobarTrabajoPropio = async (usuarioId, codigo) => {
-    if (!await repositorio.buscarTrabajoPropio(usuarioId, codigo)) {
+    if (!await repositorio.buscarTrabajoDelAutor(usuarioId, codigo)) {
         throw new ErrorUsuario('Solo puede consultar sus propios trabajos.', 403);
     }
     return { permitido: true };

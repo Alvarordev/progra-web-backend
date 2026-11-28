@@ -1,3 +1,4 @@
+import { listarIdsTrabajosDelAutor } from '../repositories/autoriaRepository.js'
 import {
   sequelize,
   AsignacionRevision,
@@ -187,12 +188,14 @@ function detalleParaAutor(trabajo) {
 export async function decisiones(req, res) {
   const usuario = res.locals.usuario
   const comite = usuario.rol === 'committee'
+  // El autor ve los dictámenes de los trabajos que registró y de aquellos donde es coautora
+  const propios = comite ? null : [...(await listarIdsTrabajosDelAutor(usuario.id)).todos]
   const filas = await Decision.findAll({
     order: [['id', 'ASC']],
     where: comite ? undefined : { status: 'published' },
     include: [{
       association: 'work',
-      where: comite ? undefined : { ownerId: usuario.id },
+      where: comite ? undefined : { id: propios },
       include: comite
         ? datosTrabajo
         : [...datosTrabajo, { association: 'assignments', include: [{ association: 'review', include: ['scores'] }] }],

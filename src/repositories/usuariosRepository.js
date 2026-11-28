@@ -1,3 +1,4 @@
+import { listarIdsTrabajosDelAutor } from './autoriaRepository.js';
 import {
     sequelize, Usuario, Edicion, EjeTematico, Trabajo, AsignacionRevision,
 } from '../models/index.js';
@@ -28,9 +29,11 @@ export const listarAsignaciones = (usuarioId) => AsignacionRevision.findAll({
     ],
     order: [['dueDate', 'ASC'], ['id', 'ASC']],
 });
-export const buscarTrabajoPropio = (usuarioId, codigo) => Trabajo.findOne({
-    where: { ownerId: usuarioId, code: codigo }, attributes: ['id'],
-});
+// Trabajo que la persona registró o donde figura como coautora (los borradores son solo de su titular).
+export const buscarTrabajoDelAutor = async (usuarioId, codigo) => {
+    const ids = await listarIdsTrabajosDelAutor(usuarioId);
+    return Trabajo.findOne({ where: { code: codigo, id: [...ids.todos] }, attributes: ['id'] });
+};
 
 export const bloquearUsuario = (id, transaction) => Usuario.findByPk(id, {
     transaction, lock: transaction.LOCK.UPDATE,

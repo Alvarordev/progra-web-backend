@@ -1,6 +1,6 @@
+import { listarIdsTrabajosDelAutor } from './autoriaRepository.js'
 import {
   sequelize,
-  AutorTrabajo,
   Edicion,
   EjeTematico,
   Sala,
@@ -121,15 +121,12 @@ export async function reemplazarTrabajos(sessionId, trabajoIds, transaction) {
 export const guardarPublicacion = (edicion, instantanea, transaction) =>
   edicion.update({ programPublished: true, programSnapshot: instantanea }, { transaction })
 
-// Códigos de los trabajos de la edición donde la persona figura como autora o titular.
+// Códigos de los trabajos de la edición donde la persona figura como autora o coautora.
 export async function listarCodigosDelAutor(usuarioId, editionId) {
-  const [propios, coautorias] = await Promise.all([
-    Trabajo.findAll({ where: { editionId, ownerId: usuarioId }, attributes: ['code'] }),
-    AutorTrabajo.findAll({
-      where: { userId: usuarioId },
-      attributes: [],
-      include: [{ model: Trabajo, where: { editionId }, attributes: ['code'], required: true }],
-    }),
-  ])
-  return new Set([...propios.map(trabajo => trabajo.code), ...coautorias.map(fila => fila.Trabajo.code)])
+  const ids = await listarIdsTrabajosDelAutor(usuarioId)
+  const trabajos = await Trabajo.findAll({
+    where: { editionId, id: [...ids.todos] },
+    attributes: ['code'],
+  })
+  return new Set(trabajos.map(trabajo => trabajo.code))
 }

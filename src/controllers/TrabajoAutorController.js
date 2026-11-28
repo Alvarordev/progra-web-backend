@@ -1,6 +1,7 @@
 import { Op } from 'sequelize'
 import { sequelize } from '../db/sequelize.js'
 import { AutorTrabajo, Edicion, EjeTematico, TipoTrabajo, Trabajo, Usuario } from '../models/index.js'
+import { listarIdsTrabajosDelAutor } from '../repositories/autoriaRepository.js'
 import { esCorreoInstitucional } from '../services/validacionesUsuario.js'
 
 // HU3 · Nuevo trabajo
@@ -160,6 +161,13 @@ function formatearTrabajo(trabajo) {
   }
 }
 
+// El trabajo con los datos que dependen de quién lo consulta:
+// "titular" es quien lo registró; solo esa persona puede editarlo o subir su versión final
+function paraAutor(trabajo, usuarioId) {
+  const titular = trabajo.ownerId === usuarioId
+  return { ...formatearTrabajo(trabajo), titular, editable: titular && trabajo.status === 'draft' }
+}
+
 // Busca un trabajo con su tipo, eje y autores
 function buscarTrabajo(id) {
   return Trabajo.findByPk(id, { include: ['workType', 'thematicAxis', 'authors'] })
@@ -315,29 +323,29 @@ export async function actualizarTrabajo(req, res) {
 // HU3 3.3 · GET /api/trabajos/mios
 // Lista los trabajos que registró el autor, del más reciente al más antiguo
 export async function listarMisTrabajos(req, res) {
+  const usuarioId = res.locals.usuario.id
+  const ids = await listarIdsTrabajosDelAutor(usuarioId)
   const trabajos = await Trabajo.findAll({
-    where: { ownerId: res.locals.usuario.id },
+    where: { id: [...ids.todos] },
     include: ['workType', 'thematicAxis', 'authors'],
     order: [['createdAt', 'DESC']],
   })
-  return res.json({ status: 'success', data: trabajos.map(formatearTrabajo) })
+  return res.json({ status: 'success', data: trabajos.map(trabajo => paraAutor(trabajo, usuarioId)) })
 }
 
 // HU3 3.4 y 3.5 · GET /api/trabajos/:trabajoId
-// Muestra el detalle de un trabajo del autor, con sus coautores
-// "editable" le dice al frontend si muestra el formulario (borrador) o el modo de solo lectura (ya enviado)
+// Muestra el detalle de un trabajo, con sus coautores, a quien lo registró o figura como coautora
+// "editable" le dice al frontend si muestra el formulario (borrador de su titular) o el modo de solo lectura
 export async function verTrabajo(req, res) {
   const { trabajoId } = req.params
   if (!Number.isInteger(Number(trabajoId))) return enviarError(res, 400, 'El id del trabajo no es válido.')
 
-  // Un autor solo puede ver sus propios trabajos
-  const trabajo = await buscarTrabajo(trabajoId)
-  if (!trabajo || trabajo.ownerId !== res.locals.usuario.id) return enviarError(res, 404, 'El trabajo no existe.')
+  const usuarioId = res.locals.usuario.id
+  const ids = await listarIdsTrabajosDelAutor(usuarioId)
+  const trabajo = ids.todos.has(Number(trabajoId)) ? await buscarTrabajo(trabajoId) : null
+  if (!trabajo) return enviarError(res, 404, 'El trabajo no existe.')
 
-  return res.json({
-    status: 'success',
-    data: { ...formatearTrabajo(trabajo), editable: trabajo.status === 'draft' },
-  })
+  return res.json({ status: 'success', data: paraAutor(trabajo, usuarioId) })
 }
 
 // PUT /api/trabajos/:trabajoId/version_final
