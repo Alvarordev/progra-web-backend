@@ -222,6 +222,31 @@ Las rutas de revisión y dictamen aceptan cookie de sesión o HTTP Basic. La API
 curl --user luis.ramirez@ulima.edu.pe http://127.0.0.1:3000/api/revisiones
 ```
 
+## API del programa del congreso (HU6)
+
+El comité arma un **borrador** (sesiones y trabajos por sesión) y lo **publica**: el público y
+los autores ven la última versión publicada, guardada como instantánea en la edición
+(`program_snapshot`). Editar el borrador no cambia lo que ve el público hasta publicar de nuevo.
+Todas las rutas aceptan `edicionId` (por defecto, la edición de mayor año).
+
+| Método | Ruta | Acceso y operación |
+| --- | --- | --- |
+| GET | `/api/programa` | Público. Versión publicada con sesiones, horarios por trabajo y moderación. |
+| GET | `/api/programa/gestion` | Comité. Borrador con salas, ejes, personas moderadoras, trabajos aceptados, conflictos y `cambiosSinPublicar`. |
+| POST | `/api/programa/sesiones` | Comité. Crea una sesión (`nombre`, `ejeId`, `fecha`, `horaInicio`, `horaFin`, `salaId`, `moderadorId`). |
+| PUT | `/api/programa/sesiones/:id` | Comité. Edita una sesión; el nuevo horario debe seguir alojando sus trabajos. |
+| DELETE | `/api/programa/sesiones/:id` | Comité. Elimina la sesión; sus trabajos no se borran, quedan sin sesión. |
+| PUT | `/api/programa/sesiones/:id/trabajos` | Comité. Reemplaza el contenido con `{ trabajos: [códigos] }`; el orden es el de exposición. |
+| POST | `/api/programa/publicacion` | Comité. Publica el borrador. Responde `409` si hay solapamientos o no hay sesiones. |
+| GET | `/api/programa/mi_presentacion` | Autor. Sus exposiciones según la versión publicada (fecha, hora, sala, moderación). |
+
+Reglas: una sala no puede alojar dos sesiones a la vez y una persona no puede moderar dos a la vez
+(`409` con el detalle); cada trabajo ocupa 20 minutos, así que la capacidad es la duración entre 20;
+solo se programan trabajos aceptados de la edición y cada uno va en una sola sesión. La moderación
+se elige entre cuentas activas de comité o revisor. Los cambios del programa de una edición se
+serializan con un bloqueo, así que dos ediciones simultáneas no pueden crear un solapamiento.
+`npm run db:seed` incluye salas y sesiones de ejemplo en la edición 2026.
+
 ## Integración con el frontend
 
 El frontend usa React y Vite. Los repositorios asíncronos de `src/core/utils/repositories.js` son el punto de integración para adoptar las rutas de la API.

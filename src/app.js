@@ -8,6 +8,7 @@ import edicionesRouter from './routes/ediciones.js'
 import usuariosRouter from './routes/usuarios.js'
 import gestionUsuariosRouter from './routes/gestionUsuarios.js'
 import metricasRouter from './routes/metricas.js'
+import programaRouter from './routes/programa.js'
 import { sesion } from './middleware/sesion.js'
 import { ErrorUsuario } from './services/validacionesUsuario.js'
 
@@ -27,6 +28,7 @@ app.use('/api', trabajosRouter)
 app.use('/api', edicionesRouter)
 app.use('/api', gestionUsuariosRouter)
 app.use('/api', metricasRouter)
+app.use('/api', programaRouter)
 
 app.use((error, _req, res, _next) => {
   if (error instanceof ErrorUsuario) {
