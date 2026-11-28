@@ -240,3 +240,31 @@ export async function actualizarTrabajo(req, res) {
   const actualizado = await buscarTrabajo(trabajo.id)
   return res.json({ status: 'success', data: formatearTrabajo(actualizado) })
 }
+
+// HU3 3.3 · GET /api/trabajos/mios
+// Lista los trabajos que registró el autor, del más reciente al más antiguo
+export async function listarMisTrabajos(req, res) {
+  const trabajos = await Trabajo.findAll({
+    where: { ownerId: res.locals.usuario.id },
+    include: ['workType', 'thematicAxis', 'authors'],
+    order: [['createdAt', 'DESC']],
+  })
+  return res.json({ status: 'success', data: trabajos.map(formatearTrabajo) })
+}
+
+// HU3 3.4 y 3.5 · GET /api/trabajos/:trabajoId
+// Muestra el detalle de un trabajo del autor, con sus coautores
+// "editable" le dice al frontend si muestra el formulario (borrador) o el modo de solo lectura (ya enviado)
+export async function verTrabajo(req, res) {
+  const { trabajoId } = req.params
+  if (!Number.isInteger(Number(trabajoId))) return enviarError(res, 400, 'El id del trabajo no es válido.')
+
+  // Un autor solo puede ver sus propios trabajos
+  const trabajo = await buscarTrabajo(trabajoId)
+  if (!trabajo || trabajo.ownerId !== res.locals.usuario.id) return enviarError(res, 404, 'El trabajo no existe.')
+
+  return res.json({
+    status: 'success',
+    data: { ...formatearTrabajo(trabajo), editable: trabajo.status === 'draft' },
+  })
+}
