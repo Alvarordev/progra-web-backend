@@ -85,6 +85,13 @@ Para cargar los datos de ejemplo de registro, asignación y evaluación, define 
 | Revisor con una evaluación en borrador | `luis.ramirez@ulima.edu.pe` |
 | Comité | `ana.salazar@ulima.edu.pe` |
 | Autora | `rosa.quispe@aloe.ulima.edu.pe` |
+| Otros autores | `diego.chavez@aloe.ulima.edu.pe`, `carlos.alarcon@aloe.ulima.edu.pe`, `lucia.vargas@aloe.ulima.edu.pe`, `camila.ramos@aloe.ulima.edu.pe` |
+| Otros revisores | `carmen.effio@ulima.edu.pe`, `jorge.palomino@ulima.edu.pe`, `milagros.yupanqui@ulima.edu.pe`, `patricia.zegarra@ulima.edu.pe` |
+
+En el despliegue (Dokploy, `https://congreso-api-178-156-230-233.sslip.io`, y el frontend en
+`https://progra-web-grp-1.vercel.app`) todas estas cuentas usan la contraseña **`Democongreso2026`**
+(`DEMO_PASSWORD`). Cambiar `DEMO_PASSWORD` después no modifica las cuentas ya creadas: los seeders
+se ejecutan una sola vez por base, así que hay que partir de una base vacía para que tome el nuevo valor.
 
 ## Cuentas, sesiones y recuperación (Historia 1)
 
