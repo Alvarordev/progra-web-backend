@@ -1,3 +1,4 @@
+import { Op } from 'sequelize'
 import { sequelize } from '../db/sequelize.js'
 import { AutorTrabajo, Edicion, EjeTematico, TipoTrabajo, Trabajo, Usuario } from '../models/index.js'
 import { esCorreoInstitucional } from '../services/validacionesUsuario.js'
@@ -112,6 +113,20 @@ async function guardarAutores(trabajo, autor, coautores, correoCorrespondencia, 
   ], { transaction })
 }
 
+// Busca otro trabajo del mismo autor y edición con el mismo título.
+// Compara en minúsculas para que «Mi Trabajo» y «MI TRABAJO» cuenten como el mismo título.
+// excluirId sirve al editar, para no compararse consigo mismo
+function buscarTituloRepetido({ autorId, edicionId, titulo, excluirId, transaction }) {
+  const where = {
+    ownerId: autorId,
+    editionId: edicionId,
+    [Op.and]: sequelize.where(sequelize.fn('lower', sequelize.col('title')), titulo.trim().toLowerCase()),
+  }
+  if (excluirId) where.id = { [Op.ne]: excluirId }
+  return Trabajo.findOne({ where, transaction })
+}
+
+
 // Error de negocio lanzado dentro de una transacción para revertirla y responder con su código
 class ErrorTrabajo extends Error {
   constructor(codigo, mensaje) {
@@ -192,8 +207,10 @@ export async function crearTrabajo(req, res) {
   try {
     const id = await sequelize.transaction(async transaction => {
       // El mismo autor no puede registrar dos trabajos con el mismo título
-      const repetido = await Trabajo.findOne({
-        where: { ownerId: autor.id, editionId: edicion.id, title: datos.titulo.trim() },
+      const repetido = await buscarTituloRepetido({
+        autorId: autor.id,
+        edicionId: edicion.id,
+        titulo: datos.titulo,
         transaction,
       })
       if (repetido) throw new ErrorTrabajo(409, 'Ya registró un trabajo con este título.')
@@ -261,6 +278,17 @@ export async function actualizarTrabajo(req, res) {
 
       const errorCoautores = validarCoautores(datos.coautores, autor.email, tipo.maxCoauthors ?? 0)
       if (errorCoautores) throw new ErrorTrabajo(400, errorCoautores)
+
+      
+      // Al editar tampoco se puede cambiar el título por el de otro trabajo suyo
+      const repetido = await buscarTituloRepetido({
+        autorId: autor.id,
+        edicionId: edicion.id,
+        titulo: datos.titulo,
+        excluirId: trabajo.id,
+        transaction,
+      })
+      if (repetido) throw new ErrorTrabajo(409, 'Ya registró un trabajo con este título.')
 
       await trabajo.update({
         title: datos.titulo.trim(),
