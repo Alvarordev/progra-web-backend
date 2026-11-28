@@ -35,7 +35,6 @@ async function resolverEdicion(valor, transaction) {
   return edicion
 }
 
-// Convierte una sesión de la base en la forma que usa la API, con sus trabajos y horarios.
 function presentarSesion(sesion) {
   const base = {
     id: sesion.id,
@@ -124,7 +123,6 @@ export async function obtenerGestionPrograma(consulta = {}) {
   }
 }
 
-// Comprueba que la sala, el eje y la persona moderadora existan y los devuelve.
 async function validarReferencias(datos, editionId, transaction) {
   const errores = {}
   const [sala, eje, moderador] = await Promise.all([

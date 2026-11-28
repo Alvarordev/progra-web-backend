@@ -9,7 +9,6 @@ async function obtenerEdicionConsultada(consulta) {
   return { id: edicion.id, nombre: edicion.name, anio: edicion.year }
 }
 
-// 7.1 Indicadores, trabajos por eje y trabajos por estado de la edición.
 export async function consultarMetricas(consulta) {
   const edicion = await obtenerEdicionConsultada(consulta)
   const [trabajos, ejes, asignaciones] = await Promise.all([
@@ -24,7 +23,6 @@ export async function consultarMetricas(consulta) {
   }
 }
 
-// 7.2 Cumplimiento por revisor de la edición.
 export async function consultarCumplimientoRevisores(consulta) {
   const edicion = await obtenerEdicionConsultada(consulta)
   const [asignaciones, totalRevisores] = await Promise.all([

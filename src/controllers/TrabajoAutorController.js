@@ -4,10 +4,6 @@ import { AutorTrabajo, Edicion, EjeTematico, TipoTrabajo, Trabajo, Usuario } fro
 import { listarIdsTrabajosDelAutor } from '../repositories/autoriaRepository.js'
 import { esCorreoInstitucional } from '../services/validacionesUsuario.js'
 
-// HU3 · Nuevo trabajo
-// El autor registra un trabajo y lo guarda como borrador o lo envía al comité
-
-// Cómo se muestra cada estado de la base de datos
 const estados = {
   draft: 'Borrador',
   submitted: 'Enviado',
@@ -16,22 +12,18 @@ const estados = {
   rejected: 'Rechazado',
 }
 
-// Devuelve un error en el mismo formato de la API
 function enviarError(res, codigo, mensaje) {
   return res.status(codigo).json({ status: 'error', mensaje })
 }
 
-// Busca la edición del congreso que todavía está recibiendo trabajos
 function buscarEdicionAbierta() {
   return Edicion.findOne({ where: { status: 'reception_open' } })
 }
 
-// La recepción está abierta si la fecha de cierre aún no pasa
 function recepcionAbierta(edicion) {
   return edicion && new Date() <= edicion.receptionDeadline
 }
 
-// Revisa los datos que llegan del formulario. Devuelve el mensaje del primer error o null
 // Un borrador solo necesita título, tipo y eje. Para enviarlo al comité se pide todo
 function validarTrabajo(datos) {
   if (!['borrador', 'enviado'].includes(datos.estado)) return 'El estado debe ser «borrador» o «enviado».'
@@ -50,7 +42,6 @@ function validarTrabajo(datos) {
   return null
 }
 
-// HU3 paso 3.2 · Revisa la lista de coautores. Devuelve el mensaje del primer error o null
 function validarCoautores(coautores, correoAutor, maxCoautores) {
   if (!Array.isArray(coautores)) return 'Los coautores deben enviarse como una lista.'
   if (coautores.length > maxCoautores) return `Este tipo de trabajo admite hasta ${maxCoautores} coautores.`
@@ -75,7 +66,6 @@ function validarCoautores(coautores, correoAutor, maxCoautores) {
   return null
 }
 
-// HU3 mockup 3.2 · Guarda la lista de autores del trabajo: primero quien lo registra y luego los coautores
 // Antes borra la lista anterior, así sirve tanto para crear como para editar.
 // Se ejecuta dentro de la transacción de quien lo llama: o se guardan todos o ninguno
 async function guardarAutores(trabajo, autor, coautores, correoCorrespondencia, transaction) {
@@ -114,9 +104,7 @@ async function guardarAutores(trabajo, autor, coautores, correoCorrespondencia, 
   ], { transaction })
 }
 
-// Busca otro trabajo del mismo autor y edición con el mismo título.
 // Compara en minúsculas para que «Mi Trabajo» y «MI TRABAJO» cuenten como el mismo título.
-// excluirId sirve al editar, para no compararse consigo mismo
 function buscarTituloRepetido({ autorId, edicionId, titulo, excluirId, transaction }) {
   const where = {
     ownerId: autorId,
@@ -127,7 +115,6 @@ function buscarTituloRepetido({ autorId, edicionId, titulo, excluirId, transacti
   return Trabajo.findOne({ where, transaction })
 }
 
-// Error de negocio lanzado dentro de una transacción para revertirla y responder con su código
 class ErrorTrabajo extends Error {
   constructor(codigo, mensaje) {
     super(mensaje)
@@ -135,7 +122,6 @@ class ErrorTrabajo extends Error {
   }
 }
 
-// Convierte un trabajo de la base de datos al formato que usa el frontend
 function formatearTrabajo(trabajo) {
   return {
     id: trabajo.id,
@@ -168,13 +154,10 @@ function paraAutor(trabajo, usuarioId) {
   return { ...formatearTrabajo(trabajo), titular, editable: titular && trabajo.status === 'draft' }
 }
 
-// Busca un trabajo con su tipo, eje y autores
 function buscarTrabajo(id) {
   return Trabajo.findByPk(id, { include: ['workType', 'thematicAxis', 'authors'] })
 }
 
-// GET /api/trabajos/ediciones
-// Datos para llenar el formulario --> la edición abierta, sus ejes y sus tipos de trabajo
 export async function opciones(req, res) {
   const edicion = await buscarEdicionAbierta()
   if (!edicion) return enviarError(res, 404, 'No hay una edición con la recepción de trabajos abierta.')
@@ -192,8 +175,6 @@ export async function opciones(req, res) {
   })
 }
 
-// POST /api/trabajos
-// Crea un trabajo nuevo, con sus coautores, como borrador o enviado
 export async function crearTrabajo(req, res) {
   const datos = { estado: 'borrador', coautores: [], ...req.body }
   const error = validarTrabajo(datos)
@@ -203,19 +184,16 @@ export async function crearTrabajo(req, res) {
   if (!edicion) return enviarError(res, 404, 'No hay una edición con la recepción de trabajos abierta.')
   if (!recepcionAbierta(edicion)) return enviarError(res, 409, 'La recepción de trabajos está cerrada.')
 
-  // El tipo y el eje tienen que ser de la edición abierta
   const tipo = await TipoTrabajo.findOne({ where: { id: datos.tipoId, editionId: edicion.id } })
   const eje = await EjeTematico.findOne({ where: { id: datos.ejeId, editionId: edicion.id } })
   if (!tipo || !eje) return enviarError(res, 400, 'El tipo o el eje no pertenecen a la edición abierta.')
 
-  // Los coautores no pueden pasar el máximo del tipo de trabajo
   const autor = await Usuario.findByPk(res.locals.usuario.id)
   const errorCoautores = validarCoautores(datos.coautores, autor.email, tipo.maxCoauthors ?? 0)
   if (errorCoautores) return enviarError(res, 400, errorCoautores)
 
   try {
     const id = await sequelize.transaction(async transaction => {
-      // El mismo autor no puede registrar dos trabajos con el mismo título
       const repetido = await buscarTituloRepetido({
         autorId: autor.id,
         edicionId: edicion.id,
@@ -248,7 +226,6 @@ export async function crearTrabajo(req, res) {
         thematicAxisId: eje.id,
       }, { transaction })
 
-      // Primero va quien registra el trabajo, luego sus coautores
       await guardarAutores(trabajo, autor, datos.coautores, datos.correspondencia, transaction)
       return trabajo.id
     })
@@ -261,15 +238,11 @@ export async function crearTrabajo(req, res) {
   }
 }
 
-// HU3 3.2 · PUT /api/trabajos/:trabajoId
-// Edita un borrador (por ejemplo, para agregar coautores) o lo envía al comité
-// Si un trabajo ya fue enviado, no puede ser editado
 export async function actualizarTrabajo(req, res) {
   const datos = { estado: 'borrador', coautores: [], ...req.body }
   const error = validarTrabajo(datos)
   if (error) return enviarError(res, 400, error)
 
-  // El id de la URL tiene que ser un número entero, por ejemplo /api/trabajos/3
   const { trabajoId } = req.params
   if (!Number.isInteger(Number(trabajoId))) return enviarError(res, 400, 'El id del trabajo no es válido.')
 
@@ -279,14 +252,12 @@ export async function actualizarTrabajo(req, res) {
     await sequelize.transaction(async transaction => {
       // Se bloquea la fila para que dos ediciones o un envío simultáneos no se pisen
       const trabajo = await Trabajo.findByPk(trabajoId, { transaction, lock: transaction.LOCK.UPDATE })
-      // Solo el autor que registró el trabajo puede editarlo
       if (!trabajo || trabajo.ownerId !== autor.id) throw new ErrorTrabajo(404, 'El trabajo no existe.')
       if (trabajo.status !== 'draft') throw new ErrorTrabajo(409, 'El trabajo ya fue enviado y no admite cambios.')
 
       const edicion = await Edicion.findByPk(trabajo.editionId, { transaction })
       if (!recepcionAbierta(edicion)) throw new ErrorTrabajo(409, 'La recepción de trabajos está cerrada.')
 
-      // El tipo y el eje tienen que ser de la misma edición del trabajo
       const tipo = await TipoTrabajo.findOne({ where: { id: datos.tipoId, editionId: edicion.id }, transaction })
       const eje = await EjeTematico.findOne({ where: { id: datos.ejeId, editionId: edicion.id }, transaction })
       if (!tipo || !eje) throw new ErrorTrabajo(400, 'El tipo o el eje no pertenecen a la edición abierta.')
@@ -294,8 +265,6 @@ export async function actualizarTrabajo(req, res) {
       const errorCoautores = validarCoautores(datos.coautores, autor.email, tipo.maxCoauthors ?? 0)
       if (errorCoautores) throw new ErrorTrabajo(400, errorCoautores)
 
-
-      // Al editar tampoco se puede cambiar el título por el de otro trabajo suyo
       const repetido = await buscarTituloRepetido({
         autorId: autor.id,
         edicionId: edicion.id,
@@ -326,8 +295,6 @@ export async function actualizarTrabajo(req, res) {
   }
 }
 
-// HU3 3.3 · GET /api/trabajos/mios
-// Lista los trabajos que registró el autor, del más reciente al más antiguo
 export async function listarMisTrabajos(req, res) {
   const usuarioId = res.locals.usuario.id
   const ids = await listarIdsTrabajosDelAutor(usuarioId)
@@ -339,8 +306,6 @@ export async function listarMisTrabajos(req, res) {
   return res.json({ status: 'success', data: trabajos.map(trabajo => paraAutor(trabajo, usuarioId)) })
 }
 
-// HU3 3.4 y 3.5 · GET /api/trabajos/:trabajoId
-// Muestra el detalle de un trabajo, con sus coautores, a quien lo registró o figura como coautora
 // "editable" le dice al frontend si muestra el formulario (borrador de su titular) o el modo de solo lectura
 export async function verTrabajo(req, res) {
   const { trabajoId } = req.params
@@ -354,8 +319,6 @@ export async function verTrabajo(req, res) {
   return res.json({ status: 'success', data: paraAutor(trabajo, usuarioId) })
 }
 
-// PUT /api/trabajos/:trabajoId/version_final
-// El autor de un trabajo aceptado registra el enlace de su versión final
 export async function guardarVersionFinal(req, res) {
   const { trabajoId } = req.params
   if (!Number.isInteger(Number(trabajoId))) return enviarError(res, 400, 'El id del trabajo no es válido.')

@@ -56,13 +56,12 @@ async function consultarActividad(usuarios) {
   )
 }
 
-// GET /gestion_usuarios
 export async function listarUsuarios(consulta) {
   const usuarios = await repositorio.listarUsuarios(validarFiltrosUsuarios(consulta))
   return consultarActividad(usuarios)
 }
 
-// POST /gestion_usuarios: crea la cuenta; la persona define su contraseña con «Olvidé mi contraseña».
+// La persona define su contraseña con «Olvidé mi contraseña».
 export async function invitarUsuario(datos) {
   const cuenta = validarDatosUsuario(datos)
   const passwordHash = await generarHash(randomBytes(24).toString('base64'))
@@ -89,7 +88,6 @@ export async function invitarUsuario(datos) {
   return { ...presentarUsuarioAdmin(usuario), correoEnviado }
 }
 
-// PUT /gestion_usuarios/:id
 export async function actualizarUsuario(id, datos, comiteId) {
   const usuarioId = validarIdUsuario(id)
   const cuenta = validarDatosUsuario(datos)
@@ -132,7 +130,6 @@ export async function actualizarUsuario(id, datos, comiteId) {
   return presentado
 }
 
-// PUT /gestion_usuarios/:id/bloqueo
 export async function bloquearUsuario(id, datos, comiteId) {
   const usuarioId = validarIdUsuario(id)
   const { motivo, notificar } = validarMotivoBloqueo(datos)
@@ -167,7 +164,6 @@ export async function bloquearUsuario(id, datos, comiteId) {
   return { ...presentado, revisionesPausadas, notificado }
 }
 
-// DELETE /gestion_usuarios/:id/bloqueo
 export async function reactivarUsuario(id) {
   const usuarioId = validarIdUsuario(id)
   const usuario = await repositorio.ejecutarTransaccion(async transaction => {

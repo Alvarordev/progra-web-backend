@@ -23,7 +23,6 @@ if (process.env.TRUST_PROXY) {
 
 app.use('/api', cors)
 
-// Permite leer el cuerpo JSON de las peticiones (POST/PUT/DELETE)
 app.use(express.json({ limit: '100kb' }))
 app.use('/api', sesion)
 

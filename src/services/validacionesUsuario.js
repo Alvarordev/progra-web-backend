@@ -6,7 +6,6 @@ export class ErrorUsuario extends Error {
     }
 }
 
-// Correo institucional de la Universidad de Lima (docentes o alumnos)
 export const esCorreoInstitucional = correo =>
     typeof correo === 'string' && correo.length <= 254 && /^[^\s@]+@(?:aloe\.)?ulima\.edu\.pe$/.test(correo);
 

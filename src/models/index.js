@@ -22,13 +22,11 @@ const required = name => ({ foreignKey: { name, allowNull: false } })
 Usuario.hasMany(RecuperacionContrasena, { foreignKey: 'usuarioId', onDelete: 'CASCADE' })
 RecuperacionContrasena.belongsTo(Usuario, { foreignKey: 'usuarioId' })
 
-// Configuración de cada edición
 for (const model of [EjeTematico, TipoTrabajo, Criterio, Trabajo, SesionPrograma]) {
   Edicion.hasMany(model, { ...required('editionId'), onDelete: 'CASCADE' })
   model.belongsTo(Edicion, { as: 'edition', ...required('editionId') })
 }
 
-// Líneas de interés de los revisores
 Usuario.belongsToMany(EjeTematico, {
   through: 'intereses_revisor',
   as: 'interests',
@@ -42,7 +40,6 @@ EjeTematico.belongsToMany(Usuario, {
   otherKey: 'userId',
 })
 
-// Trabajos y firmantes
 Usuario.hasMany(Trabajo, { as: 'ownedWorks', ...required('ownerId') })
 Trabajo.belongsTo(Usuario, { as: 'owner', ...required('ownerId') })
 EjeTematico.hasMany(Trabajo, { ...required('thematicAxisId'), onDelete: 'RESTRICT' })
@@ -55,7 +52,6 @@ AutorTrabajo.belongsTo(Trabajo, required('workId'))
 Usuario.hasMany(AutorTrabajo, { as: 'authorships', foreignKey: 'userId', onDelete: 'SET NULL' })
 AutorTrabajo.belongsTo(Usuario, { foreignKey: 'userId' })
 
-// Asignaciones, evaluaciones y recordatorios
 Trabajo.hasMany(AsignacionRevision, { as: 'assignments', ...required('workId'), onDelete: 'CASCADE' })
 AsignacionRevision.belongsTo(Trabajo, { as: 'work', ...required('workId') })
 Usuario.hasMany(AsignacionRevision, { as: 'reviewAssignments', ...required('reviewerId') })
@@ -103,11 +99,9 @@ Usuario.hasMany(HistorialAsignacion, {
 })
 HistorialAsignacion.belongsTo(Usuario, { as: 'performedBy', foreignKey: 'performedById' })
 
-// Dictamen del comité
 Trabajo.hasOne(Decision, { as: 'decision', ...required('workId'), onDelete: 'CASCADE' })
 Decision.belongsTo(Trabajo, { as: 'work', ...required('workId') })
 
-// Programa
 Sala.hasMany(SesionPrograma, required('roomId'))
 SesionPrograma.belongsTo(Sala, required('roomId'))
 EjeTematico.hasMany(SesionPrograma, { ...required('thematicAxisId'), onDelete: 'RESTRICT' })

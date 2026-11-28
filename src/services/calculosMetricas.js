@@ -33,7 +33,6 @@ export function diasDeEntrega(asignacion) {
 const promedio = valores =>
   valores.length ? valores.reduce((suma, valor) => suma + valor, 0) / valores.length : null
 
-// 7.1 Tablero de métricas de una edición.
 export function calcularMetricas({ trabajos, ejes, asignaciones, ahora = new Date() }) {
   const contar = estado => trabajos.filter(trabajo => trabajo.status === estado).length
   const borradores = contar('draft')
@@ -69,7 +68,6 @@ export function calcularMetricas({ trabajos, ejes, asignaciones, ahora = new Dat
   }
 }
 
-// 7.2 Cumplimiento por revisor, ordenado de mayor a menor cumplimiento.
 export function calcularCumplimiento({ asignaciones, totalRevisores, ahora = new Date() }) {
   const porRevisor = new Map()
   for (const asignacion of asignaciones) {
