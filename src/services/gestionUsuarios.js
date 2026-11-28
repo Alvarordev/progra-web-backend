@@ -1,12 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { UniqueConstraintError, ValidationError } from 'sequelize'
 import * as repositorio from '../repositories/gestionUsuariosRepository.js'
-import {
-  actualizarEstadoTrabajo,
-  contarAsignacionesTrabajo,
-  eliminarAsignacion,
-  registrarHistorialAsignacion,
-} from '../repositories/asignacionesRevisionRepository.js'
 import { invalidarSesiones } from '../repositories/usuariosRepository.js'
 import { contarActividad, resumirActividad } from './calculosMetricas.js'
 import { enviarAvisoBloqueo, enviarInvitacion } from './correo.js'
@@ -143,34 +137,21 @@ export async function bloquearUsuario(id, datos, comiteId) {
   const usuarioId = validarIdUsuario(id)
   const { motivo, notificar } = validarMotivoBloqueo(datos)
 
-  const { usuario, revisionesLiberadas } = await repositorio.ejecutarTransaccion(async transaction => {
+  const { usuario, revisionesPausadas } = await repositorio.ejecutarTransaccion(async transaction => {
     const actual = await repositorio.buscarUsuarioParaActualizar(usuarioId, transaction)
     if (!actual) throw new ErrorUsuario('El usuario no existe.', 404)
     if (actual.id === comiteId) throw new ErrorUsuario('No puede bloquear su propia cuenta.', 409)
     if (actual.role === 'committee') throw new ErrorUsuario('No se puede bloquear a un miembro del comité.', 409)
     if (actual.blocked) throw new ErrorUsuario('El usuario ya está bloqueado.', 409)
 
-    // Las revisiones pendientes quedan sin responsable para reasignarse desde el seguimiento.
+    // Las revisiones pendientes se conservan en pausa: el seguimiento y los recordatorios
+    // ignoran a los revisores bloqueados y vuelven a mostrarlas al reactivar la cuenta.
+    // El comité puede reasignarlas desde el seguimiento si no desea esperar.
     const pendientes = await repositorio.listarAsignacionesPendientes(actual.id, transaction)
-    for (const asignacion of pendientes) {
-      const trabajo = asignacion.work
-      await eliminarAsignacion(asignacion, transaction)
-      if (trabajo.status === 'under_review' && await contarAsignacionesTrabajo(trabajo.id, transaction) === 0) {
-        await actualizarEstadoTrabajo(trabajo, 'submitted', transaction)
-      }
-      await registrarHistorialAsignacion({
-        workId: trabajo.id,
-        action: 'removed',
-        previousReviewerId: actual.id,
-        performedById: comiteId,
-        reason: `Revisor bloqueado: ${motivo}`,
-        dueDate: asignacion.dueDate,
-      }, transaction)
-    }
 
     await repositorio.guardarUsuario(actual, { blocked: true, blockReason: motivo }, transaction)
     await invalidarSesiones(actual.id, transaction)
-    return { usuario: actual, revisionesLiberadas: pendientes.length }
+    return { usuario: actual, revisionesPausadas: pendientes.length }
   })
 
   let notificado = false
@@ -183,7 +164,7 @@ export async function bloquearUsuario(id, datos, comiteId) {
     }
   }
   const [presentado] = await consultarActividad([usuario])
-  return { ...presentado, revisionesLiberadas, notificado }
+  return { ...presentado, revisionesPausadas, notificado }
 }
 
 // DELETE /gestion_usuarios/:id/bloqueo

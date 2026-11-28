@@ -57,11 +57,12 @@ export const contarTrabajosDelAutor = (ownerId, transaction) => Trabajo.count({ 
 export const contarAsignacionesDelRevisor = (reviewerId, transaction) =>
   AsignacionRevision.count({ where: { reviewerId }, transaction })
 
-// Asignaciones del revisor cuya evaluación todavía no fue enviada.
+// Asignaciones del revisor cuya evaluación todavía no fue enviada (quedan en pausa mientras esté bloqueado).
 export async function listarAsignacionesPendientes(reviewerId, transaction) {
   const asignaciones = await AsignacionRevision.findAll({
+    attributes: ['id'],
     where: { reviewerId },
-    include: [{ association: 'work' }, { association: 'review', required: false }],
+    include: [{ association: 'review', attributes: ['status'], required: false }],
     transaction,
   })
   return asignaciones.filter(asignacion => asignacion.review?.status !== 'submitted')

@@ -1416,6 +1416,9 @@ export async function listarSeguimientoRevisiones(filtros = {}) {
       entregadas,
       pendientesEnPlazo: totalEnPlazo,
       vencidas: totalVencidas,
+      pausadas: asignaciones.filter(
+        item => item.review?.status !== 'submitted' && item.reviewer?.blocked
+      ).length,
     },
     pendientes: items,
     paginacion,
