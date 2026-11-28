@@ -126,7 +126,6 @@ function buscarTituloRepetido({ autorId, edicionId, titulo, excluirId, transacti
   return Trabajo.findOne({ where, transaction })
 }
 
-
 // Error de negocio lanzado dentro de una transacción para revertirla y responder con su código
 class ErrorTrabajo extends Error {
   constructor(codigo, mensaje) {
@@ -147,7 +146,9 @@ function formatearTrabajo(trabajo) {
     resumen: trabajo.abstract,
     palabrasClave: trabajo.keywords,
     enlace: trabajo.documentUrl,
+    enlaceFinal: trabajo.finalDocumentUrl ?? null,
     fechaEnvio: trabajo.submittedAt,
+    actualizadoEn: trabajo.updatedAt,
     autores: trabajo.authors
       .sort((a, b) => a.position - b.position)
       .map(autor => ({
@@ -279,7 +280,7 @@ export async function actualizarTrabajo(req, res) {
       const errorCoautores = validarCoautores(datos.coautores, autor.email, tipo.maxCoauthors ?? 0)
       if (errorCoautores) throw new ErrorTrabajo(400, errorCoautores)
 
-      
+
       // Al editar tampoco se puede cambiar el título por el de otro trabajo suyo
       const repetido = await buscarTituloRepetido({
         autorId: autor.id,
@@ -337,4 +338,25 @@ export async function verTrabajo(req, res) {
     status: 'success',
     data: { ...formatearTrabajo(trabajo), editable: trabajo.status === 'draft' },
   })
+}
+
+// PUT /api/trabajos/:trabajoId/version_final
+// El autor de un trabajo aceptado registra el enlace de su versión final
+export async function guardarVersionFinal(req, res) {
+  const { trabajoId } = req.params
+  if (!Number.isInteger(Number(trabajoId))) return enviarError(res, 400, 'El id del trabajo no es válido.')
+
+  const enlace = typeof req.body?.enlace === 'string' ? req.body.enlace.trim() : ''
+  if (!/^https:\/\/\S+$/.test(enlace) || enlace.length > 500) {
+    return enviarError(res, 400, 'Ingrese una URL completa que empiece con https://')
+  }
+
+  const trabajo = await Trabajo.findByPk(trabajoId)
+  if (!trabajo || trabajo.ownerId !== res.locals.usuario.id) return enviarError(res, 404, 'El trabajo no existe.')
+  if (trabajo.status !== 'accepted') {
+    return enviarError(res, 409, 'Solo los trabajos aceptados admiten una versión final.')
+  }
+
+  await trabajo.update({ finalDocumentUrl: enlace })
+  return res.json({ status: 'success', data: formatearTrabajo(await buscarTrabajo(trabajo.id)) })
 }

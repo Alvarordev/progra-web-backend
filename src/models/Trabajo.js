@@ -11,6 +11,8 @@ export const Trabajo = sequelize.define(
     abstract: { type: DataTypes.TEXT, allowNull: false, defaultValue: '' },
     keywords: { type: DataTypes.ARRAY(DataTypes.STRING(80)), allowNull: false, defaultValue: [] },
     documentUrl: { type: DataTypes.STRING(500) },
+    // Versión final del trabajo aceptado, subida por su autor.
+    finalDocumentUrl: { type: DataTypes.STRING(500) },
     // La decisión publicada fija el estado final aceptado o rechazado.
     status: {
       type: DataTypes.ENUM('draft', 'submitted', 'under_review', 'accepted', 'rejected'),

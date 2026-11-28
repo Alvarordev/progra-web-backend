@@ -6,7 +6,7 @@ import {
   obtenerTrabajosRecibidos,
 } from '../controllers/AsignacionRevisionController.js'
 import { trabajos_revisiones } from '../controllers/RevisionBDController.js'
-import { actualizarTrabajo, crearTrabajo, listarMisTrabajos, opciones, verTrabajo } from '../controllers/TrabajoAutorController.js'
+import { actualizarTrabajo, crearTrabajo, guardarVersionFinal, listarMisTrabajos, opciones, verTrabajo } from '../controllers/TrabajoAutorController.js'
 
 const router = Router()
 const comite = permitirRoles('committee')
@@ -21,6 +21,7 @@ router.get('/trabajos/mios', autenticar, autor, listarMisTrabajos)
 router.post('/trabajos', autenticar, autor, crearTrabajo)
 router.get('/trabajos/:trabajoId', autenticar, autor, verTrabajo)
 router.put('/trabajos/:trabajoId', autenticar, autor, actualizarTrabajo)
+router.put('/trabajos/:trabajoId/version_final', autenticar, autor, guardarVersionFinal)
 router.get('/trabajos/:trabajoId/historial_asignaciones', autenticar, comite, obtenerHistorialAsignacionesTrabajo)
 router.post('/trabajos/:trabajoId/asignaciones_revision', autenticar, comite, crearAsignacionesTrabajo)
 

@@ -158,20 +158,53 @@ export async function trabajos_revisiones(req, res) {
   })
 }
 
+// Resumen que ve el autor de un dictamen publicado: promedio, puntaje por criterio y
+// comentarios de las evaluaciones enviadas, sin el nombre de los revisores.
+function detalleParaAutor(trabajo) {
+  const enviadas = trabajo.assignments
+    .map(asignacion => asignacion.review)
+    .filter(revision => revision?.status === 'submitted')
+  const promedios = enviadas.map(revision => notaPonderada(revision.scores)).filter(nota => nota !== null)
+
+  const porCriterio = new Map()
+  for (const nota of enviadas.flatMap(revision => revision.scores)) {
+    if (nota.score === null) continue
+    const actual = porCriterio.get(nota.criterionName) ?? []
+    porCriterio.set(nota.criterionName, [...actual, nota.score])
+  }
+  const media = valores => Math.round(valores.reduce((suma, valor) => suma + valor, 0) * 10 / valores.length) / 10
+
+  return {
+    promedio: promedios.length ? media(promedios) : null,
+    puntajes: [...porCriterio].map(([criterio, notas]) => ({ criterio, nota: media(notas) })),
+    revisiones: enviadas.map(revision => ({
+      recomendacion: recomendacionPublica[revision.recommendation],
+      comentario: revision.authorComment,
+    })),
+  }
+}
+
 export async function decisiones(req, res) {
   const usuario = res.locals.usuario
+  const comite = usuario.rol === 'committee'
   const filas = await Decision.findAll({
     order: [['id', 'ASC']],
-    where: usuario.rol === 'committee' ? undefined : { status: 'published' },
+    where: comite ? undefined : { status: 'published' },
     include: [{
       association: 'work',
-      where: usuario.rol === 'committee' ? undefined : { ownerId: usuario.id },
-      include: datosTrabajo,
+      where: comite ? undefined : { ownerId: usuario.id },
+      include: comite
+        ? datosTrabajo
+        : [...datosTrabajo, { association: 'assignments', include: [{ association: 'review', include: ['scores'] }] }],
     }],
   })
   return res.json({
     status: 'success',
-    data: filas.map(decision => ({ ...fichaDecision(decision), trabajo: fichaTrabajo(decision.work) })),
+    data: filas.map(decision => ({
+      ...fichaDecision(decision),
+      trabajo: fichaTrabajo(decision.work),
+      ...(comite ? {} : { detalle: detalleParaAutor(decision.work) }),
+    })),
   })
 }
 

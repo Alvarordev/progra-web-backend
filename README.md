@@ -162,8 +162,9 @@ Las lecturas de edición y catálogos son públicas. Para modificar la configura
 | GET | `/api/trabajos/mios` | El autor lista sus trabajos, del más reciente al más antiguo. |
 | GET | `/api/trabajos/:trabajoId` | El autor consulta uno de sus trabajos; `editable` indica si sigue en borrador. |
 | PUT | `/api/trabajos/:trabajoId` | El autor edita un borrador o lo envía. Un trabajo enviado responde `409`. |
+| PUT | `/api/trabajos/:trabajoId/version_final` | El autor de un trabajo aceptado guarda el enlace `https://` de su versión final (`enlace`). Otro estado responde `409`. |
 
-Los coautores se envían en `coautores` como `{ nombre, correo, institucion }`. Su correo debe ser institucional (`@ulima.edu.pe` o `@aloe.ulima.edu.pe`), no puede repetirse ni coincidir con el del autor, y su cantidad no puede superar `maxCoautores` del tipo. `correspondencia` indica el correo del autor de correspondencia (por defecto, quien registra). Crear o editar un trabajo y sus autores ocurre en una sola transacción: si algo falla no se guarda nada.
+Los coautores se envían en `coautores` como `{ nombre, correo, institucion }`. Su correo debe ser institucional (`@ulima.edu.pe` o `@aloe.ulima.edu.pe`), no puede repetirse ni coincidir con el del autor, y su cantidad no puede superar `maxCoautores` del tipo. `correspondencia` indica el correo del autor de correspondencia (por defecto, quien registra). Los trabajos devuelven `actualizadoEn` y `enlaceFinal`. El título no puede repetirse entre los trabajos del mismo autor y edición, sin distinguir mayúsculas ni espacios en los extremos. Crear o editar un trabajo y sus autores ocurre en una sola transacción: si algo falla no se guarda nada.
 
 ## API de gestión de usuarios y métricas (HU7)
 
@@ -213,7 +214,7 @@ Las rutas de revisión y dictamen aceptan cookie de sesión o HTTP Basic. La API
 | --- | --- | --- |
 | GET | `/revisiones` | El revisor consulta sus evaluaciones y el comité consulta todas. |
 | GET | `/trabajos` | El comité consulta trabajos, revisiones y dictámenes. |
-| GET | `/decisiones` | El comité consulta todos los dictámenes. El autor consulta los publicados de sus trabajos. |
+| GET | `/decisiones` | El comité consulta todos los dictámenes. El autor consulta los publicados de sus trabajos, con `detalle`: promedio ponderado, puntaje promedio por criterio y los comentarios de las evaluaciones enviadas, sin el nombre de los revisores. |
 | GET | `/trabajos/:trabajoId/revisiones` | El comité consulta las notas ponderadas de las evaluaciones enviadas. |
 | PUT | `/revisiones/:id` | El revisor asignado guarda el borrador o envía su evaluación. |
 | PUT | `/decisiones/:trabajoId` | El comité guarda o publica el dictamen y fija el estado final del trabajo. |
