@@ -1,5 +1,6 @@
 const { basename } = require('node:path');
 const { cargarDemo, revertirDemo } = require('../demo/registrar.cjs');
+const { anioEdicionDemo } = require('../demo/edicion.cjs');
 
 const salasDemo = [
   ['A-101', 'Edificio A, primer piso'],
@@ -22,7 +23,7 @@ module.exports = {
       await import('../../models/index.js');
 
     await cargarDemo(query, basename(__filename), async ({ crear, buscarOCrear }) => {
-      const edicion = await Edicion.findOne({ where: { year: 2026 } });
+      const edicion = await Edicion.findOne({ where: { year: anioEdicionDemo } });
       if (!edicion) throw new Error('Cargue antes los datos de ejemplo de la HU4 o la HU5 (edición 2026).');
 
       const salas = new Map();

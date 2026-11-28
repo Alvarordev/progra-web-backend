@@ -1,5 +1,6 @@
 const { basename } = require('node:path');
 const { cargarDemo, passwordDemo, revertirDemo } = require('../demo/registrar.cjs');
+const { anioEdicionDemo, datosEdicionDemo } = require('../demo/edicion.cjs');
 
 const usuariosDemo = [
   ['Dra. Ana', 'Salazar Bermúdez', 'ana.salazar@ulima.edu.pe', 'committee', 'Universidad de Lima', true],
@@ -60,14 +61,7 @@ module.exports = {
     const passwordHash = await crearHash(password);
 
     await cargarDemo(query, basename(__filename), async ({ transaction, crear, crearVarios, buscarOCrear }) => {
-      const [edicion] = await buscarOCrear(Edicion, { year: 2026 }, {
-        name: 'VIII Congreso Académico Estudiantil',
-        venue: 'Universidad de Lima',
-        status: 'under_review',
-        receptionDeadline: '2026-09-30T23:59:00-05:00',
-        reviewDeadline: '2026-12-20T18:00:00-05:00',
-        publicationDate: '2026-12-28T12:00:00-05:00',
-      });
+      const [edicion] = await buscarOCrear(Edicion, { year: anioEdicionDemo }, datosEdicionDemo);
       const editionId = edicion.id;
       const usuariosPorCorreo = new Map();
 

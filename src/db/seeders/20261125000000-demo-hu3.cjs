@@ -1,5 +1,6 @@
 const { basename } = require('node:path');
 const { cargarDemo, passwordDemo, revertirDemo } = require('../demo/registrar.cjs');
+const { anioEdicionDemo, datosEdicionDemo } = require('../demo/edicion.cjs');
 
 const ejes = [
   'Inteligencia artificial y datos',
@@ -38,13 +39,7 @@ module.exports = {
         });
       }
 
-      const [edicion] = await buscarOCrear(Edicion, { year: 2027 }, {
-        name: 'Congreso Académico Estudiantil (demo HU3)', venue: 'Universidad de Lima',
-        status: 'reception_open',
-        receptionDeadline: '2027-09-30T23:59:00-05:00',
-        reviewDeadline: '2027-10-15T23:59:00-05:00',
-        publicationDate: '2027-10-28T09:00:00-05:00',
-      });
+      const [edicion] = await buscarOCrear(Edicion, { year: anioEdicionDemo }, datosEdicionDemo);
       const editionId = edicion.id;
       for (const name of ejes) {
         await buscarOCrear(EjeTematico, { editionId, name }, {

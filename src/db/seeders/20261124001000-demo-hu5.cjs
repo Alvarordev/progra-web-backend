@@ -1,7 +1,7 @@
 const { basename } = require('node:path');
 const { cargarDemo, passwordDemo, revertirDemo } = require('../demo/registrar.cjs');
+const { anioEdicionDemo, datosEdicionDemo } = require('../demo/edicion.cjs');
 
-const nombreEdicion = 'Congreso Académico Estudiantil (demo HU5)';
 const usuarios = [
   ['Rosa María', 'Quispe Ttito', 'rosa.quispe@aloe.ulima.edu.pe', 'author'],
   ['Diego Alonso', 'Chávez Manrique', 'diego.chavez@aloe.ulima.edu.pe', 'author'],
@@ -40,12 +40,7 @@ module.exports = {
     } = await import('../../models/index.js');
 
     await cargarDemo(query, basename(__filename), async ({ crear, crearVarios, buscarOCrear }) => {
-      const [edicion] = await buscarOCrear(Edicion, { year: 2026 }, {
-        name: nombreEdicion, venue: 'Universidad de Lima', status: 'under_review',
-        receptionDeadline: '2026-09-30T23:59:00-05:00',
-        reviewDeadline: '2026-10-15T23:59:00-05:00',
-        publicationDate: '2026-10-20T09:00:00-05:00',
-      });
+      const [edicion] = await buscarOCrear(Edicion, { year: anioEdicionDemo }, datosEdicionDemo);
       const editionId = edicion.id;
       const personas = [];
       for (const [names, surnames, email, role, institucion] of usuarios) {
