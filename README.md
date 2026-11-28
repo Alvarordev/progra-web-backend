@@ -78,7 +78,7 @@ La migración de Historia 1 agrega `sesiones` y `recuperaciones_contrasena`. Se 
 
 Si aplicaste las migraciones preliminares de la rama del PR #1, conserva esa base y configura otra en `.env` para ejecutar la migración compartida. En Docker, un volumen de PostgreSQL ya inicializado conserva la base anterior aunque cambies `POSTGRES_DB`; crea la nueva base en PostgreSQL antes de ejecutar la migración.
 
-Para cargar los datos de ejemplo de registro, asignación y evaluación, define `DEMO_PASSWORD` con al menos 12 caracteres en `.env` y ejecuta `npm run db:seed` en la base local. Las cuentas nuevas usan esa contraseña. Las cuentas existentes conservan sus credenciales. Los seeders pueden ejecutarse de nuevo sin duplicar filas y registran las filas que crean para una reversión selectiva. Las cargas anteriores sin ese registro se conservan. Si una fila registrada tiene dependencias ajenas a la demo, la reversión se cancela en su totalidad.
+Todos los seeders comparten una sola edición de ejemplo (2026, con la recepción abierta), definida en `src/db/demo/edicion.cjs`; la migración `20261129000000-unifica-edicion-demo` consolida en ella las bases que tenían también la edición 2027 de la HU3. Para cargar los datos de ejemplo de registro, asignación y evaluación, define `DEMO_PASSWORD` con al menos 12 caracteres en `.env` y ejecuta `npm run db:seed` en la base local. Las cuentas nuevas usan esa contraseña. Las cuentas existentes conservan sus credenciales. Los seeders pueden ejecutarse de nuevo sin duplicar filas y registran las filas que crean para una reversión selectiva. Las cargas anteriores sin ese registro se conservan. Si una fila registrada tiene dependencias ajenas a la demo, la reversión se cancela en su totalidad.
 
 | Rol de ejemplo | Correo |
 | --- | --- |
@@ -253,7 +253,7 @@ Reglas: una sala no puede alojar dos sesiones a la vez y una persona no puede mo
 solo se programan trabajos aceptados de la edición y cada uno va en una sola sesión. La moderación
 se elige entre cuentas activas de comité o revisor. Los cambios del programa de una edición se
 serializan con un bloqueo, así que dos ediciones simultáneas no pueden crear un solapamiento.
-`npm run db:seed` incluye salas y sesiones de ejemplo en la edición 2026.
+`npm run db:seed` incluye salas y sesiones de ejemplo; el programa queda en borrador hasta que el comité lo publica.
 
 ## Despliegue (Docker, Dokploy)
 
