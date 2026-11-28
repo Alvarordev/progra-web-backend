@@ -224,9 +224,15 @@ export async function crearTrabajo(req, res) {
       })
       if (repetido) throw new ErrorTrabajo(409, 'Ya registró un trabajo con este título.')
 
-      // Código visible: TRB-año-número, por ejemplo TRB-2027-001
-      const cantidad = await Trabajo.count({ where: { editionId: edicion.id }, transaction })
-      const codigo = `TRB-${edicion.year}-${String(cantidad + 1).padStart(3, '0')}`
+      const prefijo = `TRB-${edicion.year}-`
+      await sequelize.query("SELECT pg_advisory_xact_lock(hashtext('congreso_codigo_trabajo'))", { transaction })
+      const codigos = await Trabajo.findAll({
+        attributes: ['code'],
+        where: { code: { [Op.startsWith]: prefijo } },
+        transaction,
+      })
+      const ultimo = Math.max(0, ...codigos.map(fila => Number(fila.code.slice(prefijo.length)) || 0))
+      const codigo = `${prefijo}${String(ultimo + 1).padStart(3, '0')}`
 
       const trabajo = await Trabajo.create({
         code: codigo,
