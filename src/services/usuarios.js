@@ -57,6 +57,10 @@ export const consultarUsuario = async (id) => {
     return presentarUsuario(usuario);
 };
 
+const fechaLima = (fecha) => fecha.toLocaleDateString('es-PE', {
+    timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric',
+});
+
 export const obtenerAsignaciones = async (usuarioId) => {
     const asignaciones = await repositorio.listarAsignaciones(usuarioId);
     return asignaciones.map(asignacion => {
@@ -69,8 +73,10 @@ export const obtenerAsignaciones = async (usuarioId) => {
             tipoTrabajo: asignacion.work.workType.name,
             tipoEstado: entregada ? 'entregada' : vencida ? 'vencida' : 'pendiente',
             estado: entregada ? 'Entregada' : vencida ? 'Vencida' : 'Revisión pendiente',
-            fecha: entregada ? `Enviada el ${asignacion.review.updatedAt.toLocaleDateString('es-PE')}` : `Vence el ${asignacion.dueDate}`,
-            accion: entregada ? null : 'Evaluar',
+            fecha: entregada
+                ? `Enviada el ${fechaLima(asignacion.review.submittedAt ?? asignacion.review.updatedAt)}`
+                : `Vence el ${asignacion.dueDate.split('-').reverse().join('/')}`,
+            accion: entregada ? null : vencida ? 'Evaluar ahora' : 'Evaluar',
         };
     });
 };

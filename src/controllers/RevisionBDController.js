@@ -53,6 +53,8 @@ function fichaTrabajo(trabajo) {
     tipo: trabajo.workType?.name,
     estado: estadosTrabajo[trabajo.status],
     autorId: trabajo.ownerId,
+    resumen: trabajo.abstract,
+    documentUrl: trabajo.documentUrl ?? null,
   }
 }
 
