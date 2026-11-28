@@ -6,6 +6,10 @@ export class ErrorUsuario extends Error {
     }
 }
 
+// Correo institucional de la Universidad de Lima (docentes o alumnos)
+export const esCorreoInstitucional = correo =>
+    typeof correo === 'string' && correo.length <= 254 && /^[^\s@]+@(?:aloe\.)?ulima\.edu\.pe$/.test(correo);
+
 export const limpiarTexto = (valor) => typeof valor === 'string' ? valor.trim() : '';
 
 export const validarContrasena = (contrasena, confirmacion) => {
@@ -48,7 +52,7 @@ export const validarRegistro = (datos) => {
     resultado.acceptedTerms = datos.acceptedTerms === true;
     resultado.degree = null;
     resultado.studentCode = null;
-    if (!/^[^\s@]+@(?:aloe\.)?ulima\.edu\.pe$/.test(resultado.email) || resultado.email.length > 254) {
+    if (!esCorreoInstitucional(resultado.email)) {
         errores.email = 'Use un correo institucional válido (@ulima.edu.pe o @aloe.ulima.edu.pe).';
     }
     if (!['author', 'reviewer', 'both'].includes(datos.role)) {

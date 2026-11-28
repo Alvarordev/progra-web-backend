@@ -158,7 +158,28 @@ Las lecturas de edición y catálogos son públicas. Para modificar la configura
 | Método | Ruta | Acceso y operación |
 | --- | --- | --- |
 | GET | `/api/trabajos/ediciones` | El autor consulta la edición, los ejes y los tipos para registrar un trabajo. |
-| POST | `/api/trabajos` | El autor registra un borrador o envía un trabajo. |
+| POST | `/api/trabajos` | El autor registra un borrador o envía un trabajo, con sus coautores. |
+| GET | `/api/trabajos/mios` | El autor lista sus trabajos, del más reciente al más antiguo. |
+| GET | `/api/trabajos/:trabajoId` | El autor consulta uno de sus trabajos; `editable` indica si sigue en borrador. |
+| PUT | `/api/trabajos/:trabajoId` | El autor edita un borrador o lo envía. Un trabajo enviado responde `409`. |
+
+Los coautores se envían en `coautores` como `{ nombre, correo, institucion }`. Su correo debe ser institucional (`@ulima.edu.pe` o `@aloe.ulima.edu.pe`), no puede repetirse ni coincidir con el del autor, y su cantidad no puede superar `maxCoautores` del tipo. `correspondencia` indica el correo del autor de correspondencia (por defecto, quien registra). Crear o editar un trabajo y sus autores ocurre en una sola transacción: si algo falla no se guarda nada.
+
+## API de gestión de usuarios y métricas (HU7)
+
+Solo para cuentas de comité, con cookie de sesión o HTTP Basic.
+
+| Método | Ruta | Operación |
+| --- | --- | --- |
+| GET | `/api/gestion_usuarios` | Lista usuarios con su actividad. Filtros: `rol`, `estado` (`activos`/`bloqueados`), `institucion`, `busqueda`. |
+| POST | `/api/gestion_usuarios` | Crea una cuenta y avisa por correo; la persona define su contraseña con «Olvidé mi contraseña». |
+| PUT | `/api/gestion_usuarios/:id` | Edita datos y rol. No permite cambiar el propio rol ni quitar un rol con trabajos o revisiones asignadas. |
+| PUT | `/api/gestion_usuarios/:id/bloqueo` | Bloquea con `motivo` (y `notificar` opcional). Invalida sus sesiones. |
+| DELETE | `/api/gestion_usuarios/:id/bloqueo` | Reactiva la cuenta. |
+| GET | `/api/metricas` | Indicadores, trabajos por eje y por estado. `edicionId` opcional. |
+| GET | `/api/metricas/cumplimiento_revisores` | Cumplimiento y tiempos de entrega por revisor. |
+
+Bloquear a un revisor **no borra** sus asignaciones: las revisiones pendientes quedan en pausa (`revisionesPausadas` en la respuesta). El seguimiento las excluye de pendientes y vencidas, las cuenta en `resumen.pausadas` y los recordatorios las rechazan. Al reactivar la cuenta vuelven a aparecer. Mientras tanto el comité puede reasignarlas desde el seguimiento. El estado del trabajo no cambia.
 
 ## API de asignación de revisiones (HU4)
 
