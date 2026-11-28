@@ -1,6 +1,6 @@
 const { basename } = require('node:path');
 const { cargarDemo, passwordDemo, revertirDemo } = require('../demo/registrar.cjs');
-const { anioEdicionDemo, datosEdicionDemo } = require('../demo/edicion.cjs');
+const { anioEdicionDemo, datosEdicionDemo, crearTiposTrabajoDemo } = require('../demo/edicion.cjs');
 
 const ejes = [
   'Inteligencia artificial y datos',
@@ -9,14 +9,6 @@ const ejes = [
   'Innovación y emprendimiento',
   'Salud y sociedad',
   'Economía y mercados',
-];
-
-// [nombre, extensión máxima, formato, máximo de coautores]
-const tipos = [
-  ['Artículo completo', '8 000 palabras', 'PDF · plantilla IEEE', 4],
-  ['Resumen extendido', '2 000 palabras', 'PDF', 3],
-  ['Póster', '1 lámina A1', 'PDF · orientación vertical', 3],
-  ['Caso de estudio', '5 000 palabras', 'PDF', 4],
 ];
 
 // [nombres, apellidos, correo]
@@ -46,11 +38,7 @@ module.exports = {
           description: name, coordinator: 'Dra. Ana Salazar Bermúdez',
         });
       }
-      for (const [name, maxLength, expectedFormat, maxCoauthors] of tipos) {
-        await buscarOCrear(TipoTrabajo, { editionId, name }, {
-          maxLength, expectedFormat, allowsCoauthors: true, maxCoauthors,
-        });
-      }
+      await crearTiposTrabajoDemo(TipoTrabajo, editionId, buscarOCrear);
     });
   },
 

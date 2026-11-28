@@ -1,6 +1,6 @@
 const { basename } = require('node:path');
 const { cargarDemo, passwordDemo, revertirDemo } = require('../demo/registrar.cjs');
-const { anioEdicionDemo, datosEdicionDemo } = require('../demo/edicion.cjs');
+const { anioEdicionDemo, datosEdicionDemo, crearTiposTrabajoDemo } = require('../demo/edicion.cjs');
 
 const usuarios = [
   ['Rosa María', 'Quispe Ttito', 'rosa.quispe@aloe.ulima.edu.pe', 'author'],
@@ -63,15 +63,8 @@ module.exports = {
         });
         ejes.push(eje);
       }
-      const tipos = [];
-      for (const [name, maxLength] of [
-        ['Artículo completo', '8 000 palabras'],
-        ['Resumen extendido', '2 000 palabras'],
-        ['Caso de estudio', '4 000 palabras'],
-      ]) {
-        const [tipo] = await buscarOCrear(TipoTrabajo, { editionId, name }, { maxLength, allowsCoauthors: false });
-        tipos.push(tipo);
-      }
+      const tiposPorNombre = await crearTiposTrabajoDemo(TipoTrabajo, editionId, buscarOCrear);
+      const tipos = ['Artículo completo', 'Resumen extendido', 'Caso de estudio'].map(nombre => tiposPorNombre.get(nombre));
 
       const trabajosCreados = [];
       for (const [i, [code, title, autor, eje, status]] of trabajos.entries()) {

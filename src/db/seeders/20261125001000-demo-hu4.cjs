@@ -1,6 +1,6 @@
 const { basename } = require('node:path');
 const { cargarDemo, passwordDemo, revertirDemo } = require('../demo/registrar.cjs');
-const { anioEdicionDemo, datosEdicionDemo } = require('../demo/edicion.cjs');
+const { anioEdicionDemo, datosEdicionDemo, crearTiposTrabajoDemo } = require('../demo/edicion.cjs');
 
 const usuariosDemo = [
   ['Dra. Ana', 'Salazar Bermúdez', 'ana.salazar@ulima.edu.pe', 'committee', 'Universidad de Lima', true],
@@ -29,13 +29,6 @@ const ejesCatalogo = [
   ['Innovación y emprendimiento', 'Modelos de negocio, transferencia tecnológica y startups.'],
   ['Salud y sociedad', 'Salud pública, bienestar estudiantil y política social.'],
   ['Economía y mercados', 'Mercados financieros, comercio y desarrollo económico.'],
-];
-
-const tiposCatalogo = [
-  ['Artículo completo', '8 000 palabras', 'PDF · plantilla IEEE', true, 4],
-  ['Resumen extendido', '2 500 palabras', 'PDF', true, 3],
-  ['Póster', '1 lámina A1', 'PDF · orientación vertical', true, 5],
-  ['Caso de estudio', '5 000 palabras', 'PDF', false, null],
 ];
 
 const interesesPorCorreo = {
@@ -82,13 +75,7 @@ module.exports = {
         ejesPorNombre.set(name, eje);
       }
 
-      const tiposPorNombre = new Map();
-      for (const [name, maxLength, expectedFormat, allowsCoauthors, maxCoauthors] of tiposCatalogo) {
-        const [tipo] = await buscarOCrear(TipoTrabajo, { editionId, name }, {
-          maxLength, expectedFormat, allowsCoauthors, maxCoauthors,
-        });
-        tiposPorNombre.set(name, tipo);
-      }
+      const tiposPorNombre = await crearTiposTrabajoDemo(TipoTrabajo, editionId, buscarOCrear);
 
       const InteresRevisor = Usuario.associations.interests.through.model;
       for (const [correo, nombresEjes] of Object.entries(interesesPorCorreo)) {
