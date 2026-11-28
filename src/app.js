@@ -14,6 +14,13 @@ import { ErrorUsuario } from './services/validacionesUsuario.js'
 
 export const app = express()
 
+// Detrás de un proxy (Traefik, Vercel) la IP y el protocolo reales llegan en X-Forwarded-*;
+// sin esto la cookie de sesión «secure» no se emitiría. TRUST_PROXY=1 confía en un proxy.
+if (process.env.TRUST_PROXY) {
+  const saltos = Number(process.env.TRUST_PROXY)
+  app.set('trust proxy', Number.isNaN(saltos) ? process.env.TRUST_PROXY : saltos)
+}
+
 app.use('/api', cors)
 
 // Permite leer el cuerpo JSON de las peticiones (POST/PUT/DELETE)

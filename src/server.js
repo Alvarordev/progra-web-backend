@@ -1,7 +1,8 @@
 import { app } from './app.js'
 import { sequelize } from './db/sequelize.js'
 
-const host = '127.0.0.1'
+// En desarrollo solo escucha en local; en un contenedor se define HOST=0.0.0.0
+const host = process.env.HOST || '127.0.0.1'
 const port = Number(process.env.PORT ?? 3000)
 
 try {

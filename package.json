@@ -10,7 +10,8 @@
     "dev": "node --watch --watch-preserve-output --env-file=.env src/server.js",
     "start": "node --env-file=.env src/server.js",
     "db:migrate": "node --env-file=.env node_modules/sequelize-cli/lib/sequelize db:migrate --options-path .sequelizerc.cjs",
-    "db:seed": "node --env-file=.env node_modules/sequelize-cli/lib/sequelize db:seed:all --options-path .sequelizerc.cjs"
+    "db:seed": "node --env-file=.env node_modules/sequelize-cli/lib/sequelize db:seed:all --options-path .sequelizerc.cjs",
+    "start:prod": "sh scripts/entrypoint.sh"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

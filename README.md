@@ -248,6 +248,26 @@ se elige entre cuentas activas de comité o revisor. Los cambios del programa de
 serializan con un bloqueo, así que dos ediciones simultáneas no pueden crear un solapamiento.
 `npm run db:seed` incluye salas y sesiones de ejemplo en la edición 2026.
 
+## Despliegue (Docker, Dokploy)
+
+El `Dockerfile` instala las dependencias y arranca con `scripts/entrypoint.sh`: migra la base,
+carga los datos de ejemplo (idempotentes; se omiten con `RUN_SEEDS=false`) y levanta la API.
+No necesita archivo `.env`: todo llega por variables de entorno.
+
+| Variable | Valor en producción |
+| --- | --- |
+| `DB_HOST`, `DB_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | Datos del PostgreSQL (en Dokploy, el host interno del servicio de la base). |
+| `SESSION_SECRET` | Clave aleatoria de al menos 32 caracteres. |
+| `FRONTEND_ORIGINS` | Orígenes del frontend separados por coma, sin barra final. Admite `*` dentro del host, por ejemplo `https://mi-app-*.vercel.app` para las vistas previas de Vercel. Sin esto, la API responde `403 Origen no permitido` a los `POST`, `PUT`, `PATCH` y `DELETE` del navegador. |
+| `DEMO_PASSWORD` | Contraseña (12 caracteres o más) de las cuentas de ejemplo; solo si carga los datos de ejemplo. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_FROM`, `SMTP_USER`, `SMTP_PASSWORD` | Servidor de correo para la recuperación de contraseña y las invitaciones. |
+| `HOST`, `PORT`, `TRUST_PROXY`, `NODE_ENV` | La imagen ya define `0.0.0.0`, `3000`, `1` y `production`. |
+
+La cookie de sesión es `Secure`, `HttpOnly`, `SameSite=Lax` y de ruta `/api`, así que el navegador
+solo la acepta si el frontend y la API comparten origen. Por eso Vercel debe reenviar `/api/*` al
+backend con una regla `rewrites` (ver el README del frontend) en lugar de llamarlo desde otro dominio.
+`TRUST_PROXY=1` hace que Express confíe en `X-Forwarded-Proto` del proxy; sin él no emitiría la cookie.
+
 ## Integración con el frontend
 
 El frontend usa React y Vite. Los repositorios asíncronos de `src/core/utils/repositories.js` son el punto de integración para adoptar las rutas de la API.
